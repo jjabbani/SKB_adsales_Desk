@@ -1,0 +1,316 @@
+<!-- ================= 로그인 ================= -->
+<div id="authView">
+  <div class="auth-card">
+    <h1>광고영업팀 <span style="color:var(--brand)">매출관리 데스크</span></h1>
+    <p class="sub">제안·수주 현황을 팀 전체가 함께 관리합니다.</p>
+    <div class="auth-tabs">
+      <button id="tabLogin" class="on">로그인</button>
+      <button id="tabSignup">회원가입</button>
+    </div>
+    <div class="row"><label class="lb">이메일</label><input id="aEmail" class="fld" type="email" autocomplete="username" placeholder="name@company.com"></div>
+    <div class="row"><label class="lb">비밀번호</label><input id="aPw" class="fld" type="password" autocomplete="current-password" placeholder="6자 이상"></div>
+    <div class="row hide" id="nameRow"><label class="lb">이름</label><input id="aName" class="fld" placeholder="홍길동"></div>
+    <button id="aSubmit" class="btn primary" style="width:100%;padding:10px;margin-top:6px">로그인</button>
+    <div id="aMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- ================= 앱 ================= -->
+<div id="appView" class="hide">
+<header class="top">
+  <div class="top-in">
+    <div class="brand">광고영업팀 <span>매출관리 데스크</span></div>
+    <div class="years" id="yearTabs"></div>
+    <button id="btnAddYear" class="yadd" title="연도 추가">＋ 연도</button>
+    <div class="tabs">
+      <button data-view="dash" class="on"><span id="tabDashLabel">현재월 현황</span></button>
+      <button data-view="pivot">매출 분석</button>
+      <button data-view="compare">연도 비교</button>
+      <button data-view="list">전체 데이터</button>
+      <button id="btnQuickNew" class="quick">＋ 신규 등록</button>
+      <button data-view="settings">설정</button>
+    </div>
+    <div class="top-right">
+      <span class="who">👤 <b id="myName">-</b><span id="roleBadge" class="badge-lead hide"></span></span>
+      <button id="btnRename" class="btn sm ghost">이름 변경</button>
+      <button id="btnLogout" class="btn sm ghost">로그아웃</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ---------- 현재월 현황 ---------- -->
+  <section id="viewDash">
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-h">
+        <h2 id="curTitle">현황</h2>
+        <span class="hint" style="margin:0">제안은 <b>제안월</b>, 수주는 <b>매출월</b> 기준입니다.</span>
+        <div class="spacer"></div>
+        <label class="lb" style="margin:0 6px 0 0">기준 월</label>
+        <select id="curMonth" class="fld" style="width:auto"></select>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="set-grid" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr))">
+      <div class="card" style="margin:0">
+        <div class="card-h"><h2>상품별 수주 <span class="hint" style="margin:0 0 0 4px">상위 10</span></h2></div>
+        <div class="tbl-wrap" style="max-height:none"><table class="grid" id="topProduct"></table></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-h"><h2>채널별 수주 <span class="hint" style="margin:0 0 0 4px">상위 10</span></h2></div>
+        <div class="tbl-wrap" style="max-height:none"><table class="grid" id="topChannel"></table></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-h"><h2>미디어렙사별 수주 <span class="hint" style="margin:0 0 0 4px">상위 10</span></h2></div>
+        <div class="tbl-wrap" style="max-height:none"><table class="grid" id="topRep"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- 수주 분석 (매출월 기준 수주만) ---------- -->
+  <section id="viewPivot" class="hide">
+    <div class="card">
+      <div class="card-h">
+        <h2>월별 제안 · 수주 현황</h2>
+        <span class="hint" style="margin:0">제안은 <b>제안월</b>, 수주는 <b>매출월</b> 기준입니다.</span>
+        <div class="spacer"></div>
+        <button id="btnFuture1" class="btn sm ghost"></button>
+        <div class="legend">
+          <span><i style="background:var(--prop-mark)"></i>제안 금액</span>
+          <span><i style="background:var(--win-mark)"></i>수주 금액</span>
+        </div>
+      </div>
+      <div class="card-b" style="padding-top:8px">
+        <div id="chart" class="chart"></div>
+      </div>
+      <div class="tbl-wrap" style="max-height:none">
+        <table class="grid" id="monthTbl"></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>항목별 매출 분석 <span class="hint" style="margin:0 0 0 4px" id="pvDimName">미디어렙별</span></h2>
+        <span class="hint" style="margin:0">매출월 기준 <b>수주 건</b>만 집계합니다.</span>
+        <div class="spacer"></div>
+        <div class="seg" id="pvValue">
+          <button data-v="amount" class="on">금액</button>
+          <button data-v="count">건수</button>
+        </div>
+      </div>
+      <div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="min-width:170px">
+          <label class="lb">구분 기준</label>
+          <select id="pvDim" class="fld">
+            <option value="rep">미디어렙사별</option>
+            <option value="channel">채널별</option>
+            <option value="product">상품별</option>
+            <option value="industry">업종별</option>
+            <option value="agency">대행사별</option>
+            <option value="advertiser">광고주별</option>
+            <option value="brand">브랜드별</option>
+            <option value="promotion">프로모션별</option>
+            <option value="added_value">Added Value별</option>
+            <option value="created_name">등록자별</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:220px" id="pvQBox">
+          <label class="lb">항목 검색</label>
+          <input id="pvQ" class="fld" placeholder="예: 나스미디어 — 이름 일부만 입력해도 됩니다">
+        </div>
+        <div style="min-width:150px">
+          <label class="lb">월</label>
+          <select id="pvMonth" class="fld"><option value="">전체 (1~12월)</option></select>
+        </div>
+        <button id="btnFuture2" class="btn sm ghost"></button>
+        <button id="pvReset" class="btn sm ghost">초기화</button>
+      </div>
+      <div class="pivot-wrap">
+        <table class="grid" id="pivotTbl"></table>
+        <div id="pivotEmpty" class="empty hide">조건에 맞는 수주 데이터가 없습니다.</div>
+      </div>
+      <div class="tbl-foot"><span id="pvInfo"></span></div>
+    </div>
+  </section>
+
+  <!-- ---------- 연도 비교 ---------- -->
+  <section id="viewCompare" class="hide">
+    <div class="card">
+      <div class="card-h">
+        <h2>연도 비교 <span class="hint" style="margin:0 0 0 4px" id="cmpDimName">월별</span></h2>
+        <span class="hint" style="margin:0">매출월 기준 <b>수주 건</b>만 집계합니다.</span>
+        <div class="spacer"></div>
+        <div class="seg" id="cmpValue">
+          <button data-v="amount" class="on">금액</button>
+          <button data-v="count">건수</button>
+        </div>
+      </div>
+      <div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="min-width:150px"><label class="lb">기준 연도</label><select id="cmpA" class="fld"></select></div>
+        <div style="min-width:150px"><label class="lb">비교 연도</label><select id="cmpB" class="fld"></select></div>
+        <div style="min-width:170px">
+          <label class="lb">구분 기준</label>
+          <select id="cmpDim" class="fld">
+            <option value="month">월별</option>
+            <option value="product">상품별</option>
+            <option value="channel">채널별</option>
+            <option value="rep">미디어렙사별</option>
+            <option value="industry">업종별</option>
+          </select>
+        </div>
+        <label id="cmpSameBox" class="hint" style="margin:0 0 9px;display:flex;align-items:center;gap:5px;white-space:nowrap">
+          <input type="checkbox" id="cmpSame" checked> <span id="cmpSameLbl">같은 기간만 비교</span>
+        </label>
+        <div style="flex:1;min-width:200px" id="cmpQBox">
+          <label class="lb">항목 검색</label>
+          <input id="cmpQ" class="fld" placeholder="이름 일부만 입력해도 됩니다">
+        </div>
+      </div>
+      <div class="kpis" id="cmpKpis" style="margin:0 16px 14px"></div>
+      <div class="card-b" style="padding-top:0" id="cmpChartBox">
+        <div class="legend" style="margin-bottom:6px">
+          <span><i style="background:var(--prop-mark)"></i><b id="cmpLegA">-</b></span>
+          <span><i style="background:var(--win-mark)"></i><b id="cmpLegB">-</b></span>
+        </div>
+        <div id="cmpChart" class="chart"></div>
+      </div>
+      <div class="pivot-wrap" style="max-height:none">
+        <table class="grid" id="cmpTbl"></table>
+        <div id="cmpEmpty" class="empty hide">비교할 수주 데이터가 없습니다.</div>
+      </div>
+      <div class="tbl-foot"><span id="cmpInfo"></span></div>
+    </div>
+  </section>
+
+  <!-- ---------- 데이터 관리 ---------- -->
+  <section id="viewList" class="hide">
+    <div class="card">
+      <div class="card-h">
+        <h2>검색 · 필터</h2>
+        <div class="spacer"></div>
+        <button id="btnResetF" class="btn sm ghost">필터 초기화</button>
+      </div>
+      <div class="card-b">
+        <div class="filters">
+          <div class="wide">
+            <label class="lb">통합 검색</label>
+            <input id="fQ" class="fld" placeholder="광고주 · 브랜드 · 대행사 · 미디어렙 · 비고 …">
+          </div>
+          <div><label class="lb">제안/수주</label><select id="fStage" class="fld"></select></div>
+          <div><label class="lb">매출월</label><select id="fRevMonth" class="fld"></select></div>
+          <div><label class="lb">제안월</label><select id="fPropMonth" class="fld"></select></div>
+          <div><label class="lb">채널</label><select id="fChannel" class="fld"></select></div>
+          <div><label class="lb">미디어렙</label><select id="fRep" class="fld"></select></div>
+          <div><label class="lb">대행사</label><select id="fAgency" class="fld"></select></div>
+          <div><label class="lb">상품</label><select id="fProduct" class="fld"></select></div>
+          <div><label class="lb">업종</label><select id="fIndustry" class="fld"></select></div>
+          <div><label class="lb">등록자</label><select id="fOwner" class="fld"></select></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>전체 데이터 <span id="listCount" style="color:var(--muted);font-weight:600"></span></h2>
+        <div class="spacer"></div>
+        <button id="btnExtraCols" class="btn sm ghost"></button>
+        <button id="btnNew" class="btn primary sm">＋ 신규 등록</button>
+        <button id="btnUpload" class="btn sm">📥 엑셀 업로드</button>
+        <button id="btnDownload" class="btn sm">📤 엑셀 내려받기</button>
+      </div>
+      <div class="tbl-wrap">
+        <table class="grid" id="dataTbl"></table>
+        <div id="listEmpty" class="empty hide">조건에 맞는 데이터가 없습니다.</div>
+      </div>
+      <div class="tbl-foot">
+        <span id="pageInfo"></span>
+        <div class="spacer"></div>
+        <button id="btnPrev" class="btn sm">이전</button>
+        <button id="btnNext" class="btn sm">다음</button>
+        <select id="pageSize" class="fld" style="width:auto;padding:4px 8px">
+          <option value="50">50개씩</option><option value="100" selected>100개씩</option>
+          <option value="200">200개씩</option><option value="500">500개씩</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- 설정 ---------- -->
+  <section id="viewSettings" class="hide">
+    <div id="roleNote" class="role-note"></div>
+    <div class="set-grid" id="setGrid"></div>
+  </section>
+</main>
+</div>
+
+<!-- ================= 등록/수정 모달 ================= -->
+<div id="rowModal" class="modal-bg hide">
+  <div class="modal">
+    <div class="modal-h"><h3 id="rmTitle">신규 등록</h3><button class="btn ghost sm x" data-close="rowModal">✕</button></div>
+    <div class="modal-b">
+      <div class="frm">
+        <div><label class="lb req">제안일</label><input id="iDate" class="fld" type="date"></div>
+        <div><label class="lb">제안월 (자동)</label><input id="iPropMonth" class="fld" readonly style="background:#f5f7fa;color:var(--muted)"></div>
+        <div><label class="lb req">제안/수주</label><select id="iStage" class="fld"><option>제안</option><option>수주</option></select></div>
+
+        <div><label class="lb req">집행(예정)월</label><input id="iExecMonth" class="fld" type="month"></div>
+        <div><label class="lb req">매출월</label><input id="iRevMonth" class="fld" type="month"></div>
+        <div><label class="lb req">금액(원)</label><input id="iAmount" class="fld" inputmode="numeric" placeholder="10,000,000" style="text-align:right;font-weight:700"></div>
+
+        <div><label class="lb req">채널</label><select id="iChannel" class="fld"></select></div>
+        <div><label class="lb">미디어렙</label><select id="iRep" class="fld"></select></div>
+        <div><label class="lb">대행사</label><input id="iAgency" class="fld" list="dlAgency" placeholder="직접 입력"><datalist id="dlAgency"></datalist></div>
+
+        <div><label class="lb req">상품</label><select id="iProduct" class="fld"></select></div>
+        <div><label class="lb">업종</label><select id="iIndustry" class="fld"></select></div>
+        <div><label class="lb req">광고주</label><input id="iAdvertiser" class="fld" list="dlAdvertiser" placeholder="직접 입력"><datalist id="dlAdvertiser"></datalist></div>
+
+        <div><label class="lb">브랜드</label><input id="iBrand" class="fld" list="dlBrand" placeholder="직접 입력"><datalist id="dlBrand"></datalist></div>
+        <div class="c2"><label class="lb">Basic 총예산</label><input id="iBasic" class="fld" placeholder="예: OK / 40,000,000 / 연간 계약 6,000만원"></div>
+
+        <div class="c3"><label class="lb">비고</label><input id="iNote" class="fld" placeholder="예: 플랫폼수수료, 추정매출"></div>
+        <div><label class="lb">Added Value 활용</label><select id="iAdded" class="fld"></select></div>
+        <div><label class="lb">프로모션 적용여부</label><select id="iPromo" class="fld"></select></div>
+        <div style="display:flex;align-items:flex-end"><span class="hint" style="margin:0 0 9px">선택 항목은 <b>설정</b> 탭에서 추가·수정할 수 있습니다.</span></div>
+      </div>
+      <div id="rmMsg" class="msg"></div>
+      <div id="rmOwner" class="hint"></div>
+    </div>
+    <div class="modal-f">
+      <button id="btnDelete" class="btn danger hide">삭제</button>
+      <div class="spacer"></div>
+      <button class="btn" data-close="rowModal">취소</button>
+      <button id="btnSaveRow" class="btn primary">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 업로드 모달 ================= -->
+<div id="upModal" class="modal-bg hide">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-h"><h3>엑셀 업로드</h3><button class="btn ghost sm x" data-close="upModal">✕</button></div>
+    <div class="modal-b">
+      <div id="drop" class="drop">
+        <div style="font-size:26px">📄</div>
+        <div style="margin-top:6px"><b>엑셀 파일을 끌어다 놓거나 클릭</b>해서 선택하세요.</div>
+        <div class="hint">기존 Sales 시트와 동일한 18개 컬럼 양식(.xlsx) — 연도와 무관하게 동일하게 처리됩니다.</div>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" class="hide">
+      </div>
+      <div id="upResult" class="hide">
+        <div id="upSummary" style="margin-top:14px"></div>
+        <div class="prev-tbl"><table class="grid" id="upPrev"></table></div>
+        <div style="margin-top:10px">
+          <label style="font-size:12.5px"><input type="checkbox" id="skipDup" checked> 이미 등록된 것과 동일한 행은 건너뛰기 (중복 방지)</label>
+        </div>
+      </div>
+      <div id="upMsg" class="msg"></div>
+    </div>
+    <div class="modal-f">
+      <div class="spacer"></div>
+      <button class="btn" data-close="upModal">닫기</button>
+      <button id="btnDoImport" class="btn primary" disabled>등록 실행</button>
+    </div>
+  </div>
+</div>
