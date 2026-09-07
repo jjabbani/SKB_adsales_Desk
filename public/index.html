@@ -161,7 +161,42 @@ table.grid th.clip{max-width:150px}
 .set-item input.ed{flex:1;padding:4px 7px;border:1px solid var(--brand);border-radius:6px}
 .set-add{padding:9px 12px;border-top:1px solid var(--line2);display:flex;gap:6px}
 .set-add input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px}
+/* ---------- Monthly 아코디언 ---------- */
+.mon-head,.mon-row{display:grid;grid-template-columns:minmax(150px,1.6fr) repeat(8,minmax(78px,1fr));
+  gap:0;align-items:center;font-variant-numeric:tabular-nums}
+.mon-head{padding:8px 16px;background:#f7f9fc;border-top:1px solid var(--line2);
+  border-bottom:1px solid var(--line);font-size:11px;font-weight:800;color:var(--muted)}
+.mon-head span:not(.c1){text-align:right}
+.mon-item{border-bottom:1px solid var(--line2)}
+.mon-row{padding:10px 16px;cursor:pointer;font-size:12.5px}
+.mon-row:hover{background:#fafcff}
+.mon-row .c1{font-weight:700;display:flex;align-items:center;gap:6px;min-width:0}
+.mon-row .c1 .arw{color:var(--muted);font-size:10px;transition:transform .12s}
+.mon-item.open .mon-row{background:var(--brand-soft)}
+.mon-item.open .mon-row .arw{transform:rotate(90deg);color:var(--brand)}
+.mon-row .c2{text-align:right;padding-left:8px}
+.mon-row .c2.strong{font-weight:800}
+.mon-row .c2.ok{color:var(--win);font-weight:700}
+.mon-row .c2.low{color:var(--danger);font-weight:700}
+.mon-row .c2.dimv{color:var(--muted)}
+.mon-body{padding:4px 16px 18px;background:#fbfcfe;border-top:1px dashed var(--line)}
+.mon-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0}
+.mon-cell{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.mon-cell .t{font-size:11px;color:var(--muted);font-weight:700}
+.mon-cell .v{font-size:16px;font-weight:800;margin-top:2px}
+.mon-cell .s{font-size:11px;color:var(--muted)}
+.mon-sec{font-size:11.5px;font-weight:800;color:var(--brand);margin:10px 0 2px}
+@media(max-width:1100px){
+  .mon-head{display:none}
+  .mon-row{grid-template-columns:1fr auto auto;row-gap:2px}
+  .mon-row .c2:nth-child(n+5){display:none}
+}
+
 /* ---------- 매출목표 / 현재월 강조 ---------- */
+table.grid th.curcol,table.grid td.curcol{background:#eef4ff !important;
+  border-left:2px solid var(--brand);border-right:2px solid var(--brand)}
+table.grid thead th.curcol{border-top:2px solid var(--brand);color:var(--brand)}
+table.grid tbody tr:last-child td.curcol{border-bottom:2px solid var(--brand)}
 table.grid tr.now td{background:#eef4ff !important;font-weight:800;
   border-top:2px solid var(--brand);border-bottom:2px solid var(--brand)}
 table.grid tr.now td.dim{background:#e3edfd !important;color:var(--brand)}
@@ -234,6 +269,7 @@ table.grid tr.tot td.dim{background:#f7f9fc}
     <div class="tabs">
       <button data-view="dash" class="on"><span id="tabDashLabel">현재월 현황</span></button>
       <button data-view="pivot">매출 분석</button>
+      <button data-view="monthly">Monthly</button>
       <button data-view="compare">연도 비교</button>
       <button data-view="list">전체 데이터</button>
       <button id="btnQuickNew" class="quick">＋ 신규 등록</button>
@@ -269,6 +305,10 @@ table.grid tr.tot td.dim{background:#f7f9fc}
         <div class="legend" id="goalLegend"></div>
       </div>
       <div class="kpis" id="goalKpis" style="margin:14px 16px"></div>
+      <div class="card-b" style="padding-top:0">
+        <div class="legend" style="margin-bottom:6px" id="goalChartLegend"></div>
+        <div id="goalChart" class="chart"></div>
+      </div>
       <div class="tbl-wrap" style="max-height:none">
         <table class="grid" id="goalTbl"></table>
       </div>
@@ -364,6 +404,50 @@ table.grid tr.tot td.dim{background:#f7f9fc}
         <div class="spacer"></div>
         <span class="hint" style="margin:0">숫자를 클릭하면 해당 건의 광고주 목록이 열립니다.</span>
       </div>
+    </div>
+  </section>
+
+  <!-- ---------- Monthly (미디어렙사별) ---------- -->
+  <section id="viewMonthly" class="hide">
+    <div class="card">
+      <div class="card-h">
+        <h2 id="monTitle">미디어렙사 Monthly</h2>
+        <span class="hint" style="margin:0">매출월 기준 <b>수주</b> 실적을 렙사별 목표와 대조합니다. 금액 단위는 <b>억원</b>입니다.</span>
+        <div class="spacer"></div>
+        <label class="lb" style="margin:0 6px 0 0">기준 월</label>
+        <select id="monMonth" class="fld" style="width:auto"></select>
+      </div>
+      <div class="kpis" id="monKpis" style="margin:14px 16px"></div>
+      <div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding-top:0">
+        <div style="flex:1;min-width:220px">
+          <label class="lb">렙사 검색</label>
+          <input id="monQ" class="fld" placeholder="예: 나스미디어 — 이름 일부만 입력해도 됩니다">
+        </div>
+        <div style="min-width:150px">
+          <label class="lb">정렬</label>
+          <select id="monSort" class="fld">
+            <option value="act">당월 실적순</option>
+            <option value="goal">당월 목표순</option>
+            <option value="rate">당월 달성률순</option>
+            <option value="cum">누적 실적순</option>
+            <option value="name">이름순</option>
+          </select>
+        </div>
+        <label class="hint" style="margin:0 0 9px;display:flex;align-items:center;gap:5px;white-space:nowrap">
+          <input type="checkbox" id="monHideEmpty" checked> 목표·실적 모두 없는 렙사 숨기기
+        </label>
+        <button id="monExpandAll" class="btn sm">모두 펼치기</button>
+        <button id="monCollapseAll" class="btn sm ghost">모두 접기</button>
+      </div>
+      <div class="mon-head">
+        <span class="c1">미디어렙사</span>
+        <span class="c2">당월 목표</span><span class="c2">당월 실적</span><span class="c2">달성율</span>
+        <span class="c2">전월비</span><span class="c2">YoY</span>
+        <span class="c2">누적 목표</span><span class="c2">누적 실적</span><span class="c2">누적 달성율</span>
+      </div>
+      <div id="monList"></div>
+      <div id="monEmpty" class="empty hide">표시할 미디어렙사가 없습니다.</div>
+      <div class="tbl-foot"><span id="monInfo"></span></div>
     </div>
   </section>
 
@@ -591,7 +675,8 @@ const SETTINGS = {
   rep:         ["나스미디어","딜라이브","KOBACO","APM","애드크래프트","스카이라이프","모아미디어","인크로스","메조미디어","DMC미디어","리노컴즈","HCN",
                 "이펙트원","휴앤아이","미디어에스","다트미디어","파스텔애드","메인애드","웰메이드씨존","JCN울산방송","어니스트컴퍼니","미디어747","드림에이지이",
                 "케이티이엔에이","애드고온","디지털퍼스트","페이백헬스케어","애드원","인포벨","지에스","이노바인코리아","문화미디어렙","KICAD","프라이머스",
-                "리얼투데이","DK텔레콤","엠투미디어","바이메이더","IGA웍스","KPPL"],
+                "리얼투데이","DK텔레콤","엠투미디어","바이메이더","IGA웍스","KPPL",
+                "LG헬로비전","시케이미디어","넥스트비전","클래시컴퍼니","나인코리아","클라우디파이","초현애드","크레용","시온플래닛","스카이라이프TV","디플랜360"],
   product:     ["AD+","Addr.Tv","Basic","C-실시간","C-VOD","VOD","커머스","온애드","티온","비즈챗","지역","ASUM","시니어","기타"],
   industry:    ["기타","제약 및 의료","관공서 및 단체","요식업","서비스","식음료","건설,건재 및 부동산",
                 "그룹 및 기업광고","가정용품","금융,보험 및 증권","컴퓨터 및 정보통신","유통",
@@ -600,6 +685,8 @@ const SETTINGS = {
   added_value: ["소노리조트","약국미디어보드","카카오VX","이마트DOOH"],
   years:       [],
   /* 매출목표 — { "연도": { goal:[12개월], trend:[12개월] } } · 설정 탭에서 수정 */
+  /* 미디어렙사별 월 목표 — { "연도": { "렙사명":[12개월] } } */
+  rep_targets: {"2025":{"메조미디어":[134700000,127900000,157700000,160900000,166400000,164000000,160900000,153800000,175800000,192300000,203200000,202500000],"인크로스":[101000000,95900000,118300000,120700000,124800000,123000000,120700000,115400000,131800000,144200000,152400000,151800000],"APM":[168300000,159900000,197200000,201100000,208000000,205000000,201100000,192300000,219700000,240300000,254100000,253100000],"나스미디어":[101000000,95900000,118300000,120700000,124800000,123000000,120700000,115400000,131800000,144200000,152400000,151800000],"다트미디어":[20200000,19200000,23700000,24100000,25000000,24600000,24100000,23100000,26400000,28800000,30500000,30400000],"이펙트원":[47100000,44800000,55200000,56300000,58200000,57400000,56300000,53800000,61500000,67300000,71100000,70900000],"DMC미디어":[53900000,51200000,63100000,64300000,66500000,65600000,64300000,61500000,70300000,76900000,81300000,81000000],"모아미디어":[47100000,44800000,55200000,56300000,58200000,57400000,56300000,53800000,61500000,67300000,71100000,70900000],"리노컴즈":[33700000,32000000,39400000,40200000,41600000,41000000,40200000,38500000,43900000,48100000,50800000,50600000],"애드크래프트":[47100000,44800000,55200000,56300000,58200000,57400000,56300000,53800000,61500000,67290000,71100000,70900000],"휴앤아이":[13500000,12800000,15800000,16100000,16600000,16400000,16100000,15400000,17600000,19200000,20300000,20200000],"디지털퍼스트":[6700000,6400000,7900000,8000000,8300000,8200000,8000000,7700000,8800000,9600000,10200000,10100000],"프라이머스":[33700000,32000000,39400000,40200000,41600000,41000000,40200000,38500000,43900000,48100000,50800000,50600000],"미디어747":[20200000,19200000,23700000,24100000,25000000,24600000,24100000,23100000,26400000,28800000,30500000,30400000],"KOBACO":[13500000,12800000,15800000,16100000,16600000,16400000,16100000,15400000,17600000,19200000,20300000,20200000],"딜라이브":[107700000,102300000,126200000,128700000,133100000,131200000,128700000,123000000,140600000,153800000,162600000,162000000],"스카이라이프":[67300000,64000000,78900000,80400000,83200000,82000000,80400000,76900000,87900000,96100000,101600000,101200000],"HCN":[33700000,32000000,39400000,40200000,41600000,41000000,40200000,38500000,43900000,48100000,50800000,50600000],"미디어에스":[6700000,6400000,7900000,8000000,8300000,8200000,8000000,7700000,8800000,9600000,10200000,10100000],"JCN울산방송":[3400000,3200000,3900000,4000000,4200000,4100000,4000000,3800000,4400000,4800000,5100000,5100000],"어니스트컴퍼니":[10100000,9600000,11800000,12100000,12500000,12300000,12100000,11500000,13200000,14400000,15200000,15200000],"DK텔레콤":[10100000,9600000,11800000,12100000,12500000,12300000,12100000,11500000,13200000,14400000,15200000,15200000],"드림에이지이":[87500000,83100000,102500000,104600000,108100000,106600000,104600000,100000000,114300000,125000000,132100000,131600000],"문화미디어렙":[20200000,19200000,23700000,24100000,25000000,24600000,24100000,23100000,26400000,28800000,30500000,30400000],"바이메이더":[6700000,6400000,7900000,8000000,8300000,8200000,8000000,7700000,8800000,9600000,10200000,10100000],"KICAD":[80800000,76700000,94600000,96500000,99800000,98400000,96500000,92300000,105500000,115400000,121900000,121500000],"스카이라이프TV":[3400000,3200000,3900000,4000000,4200000,4100000,4000000,3800000,4400000,4800000,5100000,5100000],"디플랜360":[20200000,19200000,23700000,24100000,25000000,24600000,24100000,23100000,26400000,28800000,30500000,30400000]},"2026":{"메조미디어":[87000000,85000000,100000000,97000000,97000000,92000000,90000000,103000000,105000000,111000000,113000000,121000000],"인크로스":[58000000,57000000,67000000,65000000,64000000,61000000,60000000,68000000,70000000,74000000,76000000,80000000],"APM":[178000000,174000000,205000000,199000000,198000000,188000000,184000000,210000000,216000000,227000000,233000000,247000000],"나스미디어":[106000000,104000000,123000000,119000000,119000000,113000000,110000000,126000000,130000000,136000000,139000000,148000000],"파스텔애드":[12000000,12000000,14000000,14000000,13000000,13000000,12000000,14000000,15000000,15000000,16000000,17000000],"다트미디어":[7000000,7000000,8000000,8000000,8000000,8000000,7000000,9000000,9000000,9000000,9000000,10000000],"이펙트원":[27000000,27000000,31000000,30000000,30000000,29000000,28000000,32000000,33000000,35000000,36000000,38000000],"DMC미디어":[58000000,57000000,67000000,65000000,64000000,61000000,60000000,68000000,70000000,74000000,76000000,80000000],"모아미디어":[58000000,57000000,67000000,65000000,64000000,61000000,60000000,68000000,70000000,74000000,76000000,80000000],"리노컴즈":[25000000,25000000,29000000,28000000,28000000,27000000,26000000,30000000,31000000,32000000,33000000,35000000],"애드크래프트":[73000000,72000000,85000000,82000000,82000000,78000000,76000000,87000000,89000000,94000000,96000000,102000000],"휴앤아이":[20000000,19000000,23000000,22000000,22000000,21000000,20000000,23000000,24000000,25000000,26000000,27000000],"디지털퍼스트":[36000000,35000000,42000000,40000000,40000000,38000000,37000000,43000000,44000000,46000000,47000000,50000000],"프라이머스":[43000000,42000000,50000000,49000000,48000000,46000000,45000000,51000000,53000000,55000000,57000000,60000000],"미디어747":[22000000,22000000,26000000,25000000,25000000,24000000,23000000,27000000,27000000,29000000,29000000,31000000],"KOBACO":[25000000,25000000,29000000,28000000,28000000,27000000,26000000,30000000,31000000,32000000,33000000,35000000],"딜라이브":[123000000,120000000,142000000,138000000,137000000,130000000,127000000,145000000,149000000,157000000,161000000,171000000],"스카이라이프":[51000000,50000000,59000000,57000000,57000000,54000000,53000000,61000000,62000000,65000000,67000000,71000000],"HCN":[49000000,48000000,57000000,55000000,55000000,52000000,51000000,58000000,60000000,63000000,64000000,68000000],"JCN울산방송":[1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000],"어니스트컴퍼니":[14000000,14000000,17000000,16000000,16000000,15000000,15000000,17000000,18000000,18000000,19000000,20000000],"DK텔레콤":[29000000,28000000,33000000,32000000,32000000,31000000,30000000,34000000,35000000,37000000,38000000,40000000],"드림에이지이":[39000000,38000000,45000000,44000000,44000000,41000000,40000000,46000000,47000000,50000000,51000000,54000000],"애드원":[22000000,21000000,25000000,24000000,24000000,23000000,22000000,26000000,26000000,28000000,28000000,30000000],"LG헬로비전":[4000000,4000000,5000000,5000000,5000000,5000000,4000000,5000000,5000000,6000000,6000000,6000000],"시케이미디어":[30000000,29000000,35000000,34000000,33000000,32000000,31000000,35000000,36000000,38000000,39000000,42000000],"넥스트비전":[22000000,21000000,25000000,24000000,24000000,23000000,22000000,26000000,26000000,28000000,28000000,30000000],"클래시컴퍼니":[9000000,9000000,10000000,10000000,10000000,9000000,9000000,10000000,11000000,11000000,12000000,12000000],"나인코리아":[8000000,7000000,9000000,8000000,8000000,8000000,8000000,9000000,9000000,10000000,10000000,10000000],"클라우디파이":[4000000,4000000,5000000,5000000,5000000,5000000,4000000,5000000,5000000,6000000,6000000,6000000],"초현애드":[4000000,4000000,4000000,4000000,4000000,4000000,4000000,4000000,4000000,5000000,5000000,5000000],"크레용":[22000000,21000000,25000000,24000000,24000000,23000000,22000000,26000000,26000000,28000000,28000000,30000000]}},
   targets:     {"2025": {"goal": [1720000000, 1630000000, 2010000000, 2050000000, 2120000000, 2090000000, 2050000000, 1960000000, 2240000000, 2450000000, 2590000000, 2580000000]}, "2026": {"goal": [1775000000, 1740000000, 2050000000, 1990000000, 1980000000, 1880000000, 1840000000, 2100000000, 2160000000, 2270000000, 2330000000, 2470000000], "trend": [1788313723, 1536053904, 1595161946, 1559390214, 1563205889, 1448366108, 1600449860, 1822949860, 1958149860, 2128149860, 2358149860, 2658149860]}}
 };
 
@@ -637,6 +724,7 @@ let EDIT_ID = null;
 let IMPORT_ROWS = null;
 let rtChannel = null;
 let PV = { dim:"rep", value:"amount", q:"", month:"", showFuture:false, stage:"수주" };
+let MON = { month:"", q:"", open:{}, hideEmpty:true, sort:"act" };
 
 /* ===================== 유틸 ===================== */
 const $  = (id) => document.getElementById(id);
@@ -749,6 +837,12 @@ function targetsOf(year, kind){
 }
 function hasTrend(year){ return targetsOf(year, "trend").length === 12; }
 
+/** 그 해 미디어렙사별 월 목표 — { 렙사명: [12개월] } */
+function repTargetsOf(year){
+  const t = (SETTINGS.rep_targets || {})[String(year)];
+  return (t && typeof t === "object") ? t : {};
+}
+
 /** 팀장(lead) · 마스터(master) = 전체 수정·삭제 + 설정 관리 */
 function isAdmin(){ return !!ME && (ME.role==="lead" || ME.role==="master"); }
 function canEdit(row){ return !!ME && (isAdmin() || row.created_by===ME.id); }
@@ -834,7 +928,9 @@ async function loadSettings(){
   data.forEach(r=>{
     let items = r.items;
     if(typeof items === "string"){ try{ items = JSON.parse(items); }catch(e){ items = null; } }
-    if(r.key === "targets"){ if(items && typeof items === "object" && !Array.isArray(items)) SETTINGS.targets = items; }
+    if(r.key === "targets" || r.key === "rep_targets"){
+      if(items && typeof items === "object" && !Array.isArray(items)) SETTINGS[r.key] = items;
+    }
     else if(Array.isArray(items)) SETTINGS[r.key] = items;
   });
 }
@@ -1194,15 +1290,27 @@ function lastRealMonth(){
   const now = new Date();
   return YEAR === now.getFullYear() ? (now.getMonth()+1) : 12;
 }
-/** 화면에 그릴 월 키 목록 — 최신 월이 맨 왼쪽 */
+/** 화면에 그릴 월 키 목록 — 1월부터 오름차순, 미도래 월은 접었다 펼침 */
 function monthKeys(){
   const ref = lastRealMonth();
   const out = [];
-  for(let m=12;m>=1;m--){
+  for(let m=1;m<=12;m++){
     if(m > ref && !PV.showFuture) continue;
     out.push(`${YEAR}-${String(m).padStart(2,"0")}`);
   }
   return out;
+}
+/** 올해라면 이번 달의 'YYYY-MM' — 표·차트에서 강조에 씁니다 */
+function currentYM(){
+  const now = new Date();
+  return YEAR === now.getFullYear()
+    ? `${YEAR}-${String(now.getMonth()+1).padStart(2,"0")}` : "";
+}
+/** 억원 표기 — 그래프 축·툴팁용 */
+function eok(v){
+  const x = (Number(v)||0)/100000000;
+  if(!x) return "0";
+  return (Math.abs(x) >= 10 ? x.toFixed(0) : x.toFixed(1)) + "억";
 }
 /** 미도래 월 토글 버튼 문구 */
 function syncFutureBtns(){
@@ -1363,10 +1471,85 @@ function renderTargets(){
       ${useTrend?`<td class="num" style="color:${pct(cA,cT)>=100?"var(--win)":"var(--danger)"}">${pct(cA,cT).toFixed(1)}%</td>`:''}
     </tr>`;
   $("goalTbl").innerHTML = head + "<tbody>" + body + tot + "</tbody>";
+  drawGoalChart(goal, useTrend ? trend : null, act, curM);
   $("goalInfo").textContent =
     `${curM}월 목표 ${comma(mG)}원 · 달성 ${comma(mA)}원 (${pct(mA,mG).toFixed(1)}%)`
     + (useTrend ? ` · Trend ${comma(mT)}원 대비 ${pct(mA,mT).toFixed(1)}%` : "")
     + ` | 1~${curM}월 누적 달성률 ${pct(cA,cG).toFixed(1)}%`;
+}
+
+/* 월별 목표 · Trend · 실적 — 억원 단위 막대 + Trend 선 */
+function drawGoalChart(goal, trend, act, curM){
+  const host = $("goalChart");
+  $("goalChartLegend").innerHTML =
+      `<span><i style="background:var(--prop-mark)"></i>목표매출</span>`
+    + (trend ? `<span><i style="background:#1baf7a"></i>Trend</span>` : "")
+    + `<span><i style="background:var(--win-mark)"></i>달성 매출</span>`
+    + `<span style="color:var(--brand)">■ ${curM}월(현재)</span>`;
+
+  const W = Math.max(600, host.clientWidth || 900), H = 268;
+  const P = { t:16, r:14, b:26, l:46 };
+  const iw = W - P.l - P.r, ih = H - P.t - P.b;
+  const max = Math.max(1, ...goal, ...act, ...(trend||[]));
+  const step = niceStep(max), top = Math.ceil(max/step)*step;
+  const y = v => P.t + ih - ((Number(v)||0)/top)*ih;
+  const band = iw/12;
+  const bw = Math.max(7, Math.min(20, band*0.3));
+  const GAP = 2;
+
+  let g = "";
+  // 현재월 배경 강조
+  const ci = curM-1;
+  g += `<rect x="${(P.l+band*ci).toFixed(1)}" y="${P.t}" width="${band.toFixed(1)}" height="${ih}"
+         fill="#eef4ff" stroke="var(--brand)" stroke-width="1.5" rx="4"/>`;
+  for(let v=0; v<=top; v+=step){
+    g += `<line x1="${P.l}" x2="${W-P.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#eef1f6" stroke-width="1"/>`;
+    g += `<text x="${P.l-7}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" font-size="10.5" fill="#6b7688">${v?eok(v):0}</text>`;
+  }
+  for(let i=0;i<12;i++){
+    const cx = P.l + band*i + band/2;
+    g += bar(cx - bw - GAP/2, y(goal[i]), bw, P.t+ih-y(goal[i]), "var(--prop-mark)");
+    g += bar(cx + GAP/2,      y(act[i]),  bw, P.t+ih-y(act[i]),  "var(--win-mark)");
+    g += `<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="10.5"
+            fill="${i===ci?"var(--brand)":"#6b7688"}" font-weight="${i===ci?700:400}">${i+1}월</text>`;
+  }
+  if(trend){
+    const pts = trend.map((v,i)=>`${(P.l+band*i+band/2).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    g += `<polyline points="${pts}" fill="none" stroke="#1baf7a" stroke-width="2"
+            stroke-linejoin="round" stroke-linecap="round"/>`;
+    trend.forEach((v,i)=>{
+      g += `<circle cx="${(P.l+band*i+band/2).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.2"
+              fill="#1baf7a" stroke="#fff" stroke-width="1.5"/>`;
+    });
+  }
+  for(let i=0;i<12;i++){
+    g += `<rect class="ghit" x="${(P.l+band*i).toFixed(1)}" y="${P.t}" width="${band.toFixed(1)}"
+            height="${ih}" fill="transparent" data-i="${i}" style="cursor:pointer"/>`;
+  }
+  g += `<line x1="${P.l}" x2="${W-P.r}" y1="${P.t+ih}" y2="${P.t+ih}" stroke="#d7dde8" stroke-width="1"/>`;
+
+  host.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="월별 목표매출과 달성 매출 비교 (억원)">${g}</svg><div id="gtip" class="hide"></div>`;
+
+  const tip = $("gtip");
+  tip.style.cssText = "position:absolute;background:#1b2230;color:#fff;padding:8px 11px;border-radius:8px;font-size:12px;pointer-events:none;z-index:50;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.22)";
+  host.style.position = "relative";
+  host.querySelectorAll(".ghit").forEach(z=>{
+    z.addEventListener("mousemove", e=>{
+      const i = Number(z.dataset.i), g0 = goal[i]||0, a0 = act[i]||0;
+      tip.classList.remove("hide");
+      tip.innerHTML = `<b>${YEAR}년 ${i+1}월${i===ci?" (현재)":""}</b><br>`
+        + `<span style="color:#f6b28e">■</span> 목표 ${eok(g0)}<br>`
+        + (trend ? `<span style="color:#7fd6b4">■</span> Trend ${eok(trend[i])}<br>` : "")
+        + `<span style="color:#8fc0f2">■</span> 달성 ${eok(a0)}<br>`
+        + `달성률 ${g0?((a0/g0*100).toFixed(1)):"0.0"}%`;
+      const b = host.getBoundingClientRect();
+      let x = e.clientX - b.left + 12;
+      if(x + 190 > b.width) x = b.width - 194;
+      tip.style.left = x+"px"; tip.style.top = (e.clientY - b.top + 12)+"px";
+    });
+    z.addEventListener("mouseleave", ()=> tip.classList.add("hide"));
+  });
 }
 
 function renderCurrent(){
@@ -1441,11 +1624,15 @@ function renderMonthTable(){
   const rows = monthAgg();
   const tp = rows.reduce((s,r)=>s+r.pa,0), tw = rows.reduce((s,r)=>s+r.wa,0);
   const tpc = rows.reduce((s,r)=>s+r.pc,0), twc = rows.reduce((s,r)=>s+r.wc,0);
+  const cy = currentYM();
+  const isCur = r => r.m === cy;
   const head = `<thead><tr><th class="nos dim">구분</th>
-    ${rows.map(r=>`<th class="num nos">${monthCap(r)}</th>`).join("")}
+    ${rows.map(r=>`<th class="num nos${isCur(r)?" curcol":""}">${monthCap(r)}</th>`).join("")}
     <th class="num nos">합계</th></tr></thead>`;
   const line = (label,vals,total,cls) =>
-    `<tr><td class="dim" style="${cls||''}">${label}</td>${vals.map(v=>`<td class="num">${v}</td>`).join("")}<td class="num" style="font-weight:800;background:#f7f9fc">${total}</td></tr>`;
+    `<tr><td class="dim" style="${cls||''}">${label}</td>`
+    + vals.map((v,i)=>`<td class="num${isCur(rows[i])?" curcol":""}">${v}</td>`).join("")
+    + `<td class="num" style="font-weight:800;background:#f7f9fc">${total}</td></tr>`;
   $("monthTbl").innerHTML = head + "<tbody>"
     + line("제안 건수", rows.map(r=>r.pc?comma(r.pc):"-"), comma(tpc), "color:var(--prop)")
     + line("제안 금액", rows.map(r=>r.pa?comma(r.pa):"-"), comma(tp),  "color:var(--prop)")
@@ -1580,13 +1767,14 @@ function renderPivot(){
   $("pivotEmpty").classList.add("hide");
 
   const grandT = list.reduce((s,r)=>s+(isAmt?r.ta:r.tc),0) || 1;
+  const cy = currentYM();
   const cell = (v, k, m)=> v
-    ? `<td class="num clickable" data-k="${esc(k)}" data-m="${m}">${comma(v)}</td>`
-    : `<td class="num">-</td>`;
+    ? `<td class="num clickable${m===cy?" curcol":""}" data-k="${esc(k)}" data-m="${m}">${comma(v)}</td>`
+    : `<td class="num${m===cy?" curcol":""}">-</td>`;
 
   const head = `<thead><tr>
       <th class="nos dim">${PV_LABEL[dim]}</th>
-      ${cols.map(m=>`<th class="num nos">${Number(m.slice(5))}월</th>`).join("")}
+      ${cols.map(m=>`<th class="num nos${m===cy?" curcol":""}">${Number(m.slice(5))}월</th>`).join("")}
       <th class="num nos">합계</th><th class="num nos">비중</th></tr></thead>`;
 
   const body = list.map(r=>`<tr class="${r.k==="(미입력)"?"dim-empty":""}">
@@ -1598,7 +1786,7 @@ function renderPivot(){
 
   const totRow = `<tr class="tot">
       <td class="dim">합계</td>
-      ${cols.map(m=>`<td class="num">${comma(list.reduce((s,r)=>s+((isAmt?r.a[m]:r.c[m])||0),0))}</td>`).join("")}
+      ${cols.map(m=>`<td class="num${m===cy?" curcol":""}">${comma(list.reduce((s,r)=>s+((isAmt?r.a[m]:r.c[m])||0),0))}</td>`).join("")}
       <td class="num">${comma(grandT)}</td><td class="num">100%</td></tr>`;
 
   $("pivotTbl").innerHTML = head + "<tbody>" + body + totRow + "</tbody>";
@@ -1607,9 +1795,9 @@ function renderPivot(){
     td.onclick = ()=> openDrill(dim, td.dataset.k, td.dataset.m, stage);
   });
 
-  const rangeTxt = PV.month
-    ? Number(PV.month.slice(5))+"월"
-    : cols.map(m=>Number(m.slice(5))+"월").slice(-1)[0] + "~" + cols.map(m=>Number(m.slice(5))+"월")[0];
+  const mnums = cols.map(m=>Number(m.slice(5))).sort((a,b)=>a-b);
+  const rangeTxt = PV.month ? Number(PV.month.slice(5))+"월"
+    : (mnums.length ? mnums[0]+"~"+mnums[mnums.length-1]+"월" : "");
   $("pvInfo").textContent =
     `${PV_LABEL[dim]} ${comma(list.length)}개 · ${rangeTxt} ${stage||"제안+수주"} `
     + (isAmt ? `합계 ${comma(grandT)}원` : `합계 ${comma(grandT)}건`)
@@ -1679,17 +1867,20 @@ function openDrill(dim, key, ym, stage){
 function render(){
   $("viewDash").classList.toggle("hide", VIEW!=="dash");
   $("viewPivot").classList.toggle("hide", VIEW!=="pivot");
+  $("viewMonthly").classList.toggle("hide", VIEW!=="monthly");
   $("viewCompare").classList.toggle("hide", VIEW!=="compare");
   $("viewList").classList.toggle("hide", VIEW!=="list");
   $("viewSettings").classList.toggle("hide", VIEW!=="settings");
   if(VIEW==="dash") renderCurrent();
   else if(VIEW==="pivot"){ renderChart(); renderMonthTable(); renderPivot(); }
+  else if(VIEW==="monthly") renderMonthly();
   else if(VIEW==="compare") renderCompare();
   else if(VIEW==="list") renderList();
   else if(VIEW==="settings") renderSettings();
 }
 window.addEventListener("resize", ()=>{
   if(!ME) return;
+  if(VIEW==="dash") renderCurrent();
   if(VIEW==="pivot") renderChart();
   if(VIEW==="compare" && CMP_CHARTABLE.includes(CMP.dim)) renderCompare();
 });
@@ -2177,6 +2368,208 @@ function drawCompareChart(keys, ma, mb, isAmt, ya, yb, labelFn){
 }
 </script>
 <script>
+/* =====================================================================
+   Monthly — 미디어렙사별 당월/누적 현황과 전년 대비
+   목표: 설정(app_settings.rep_targets) · 실적: 매출월 기준 수주
+   금액은 "미디어렙사 Monthly" 양식과 같이 억원으로 표기합니다.
+   ===================================================================== */
+function monSyncControls(){
+  const sel = $("monMonth");
+  sel.innerHTML = Array.from({length:12},(_,i)=>{
+    const k = `${YEAR}-${String(i+1).padStart(2,"0")}`;
+    return `<option value="${k}">${YEAR}년 ${i+1}월</option>`;
+  }).join("");
+  if(!MON.month || !MON.month.startsWith(YEAR+"-")) MON.month = defaultMonth();
+  sel.value = MON.month;
+  $("monSort").value = MON.sort;
+  $("monHideEmpty").checked = MON.hideEmpty;
+  $("monQ").value = MON.q;
+}
+
+/** 연도 rows → { 렙사: [12개월 금액] } (매출월 기준 수주만) */
+function repActuals(rows){
+  const map = {};
+  rows.forEach(r=>{
+    if(r.stage !== "수주") return;
+    const nm = (r.rep||"").trim();
+    if(!nm) return;                                  // 미디어렙 미입력 제외
+    const m = Number(String(r.revenue_month||"").slice(5));
+    if(!(m>=1 && m<=12)) return;
+    (map[nm] = map[nm] || Array(12).fill(0))[m-1] += Number(r.amount)||0;
+  });
+  return map;
+}
+
+async function renderMonthly(){
+  monSyncControls();
+  const M = Number(MON.month.slice(5));
+  $("monTitle").textContent = `미디어렙사 Monthly — ${YEAR}년 ${M}월`;
+
+  const goals = repTargetsOf(YEAR);
+  const actN  = repActuals(ROWS);
+  const prevRows = YEARS.includes(YEAR-1) ? await fetchYearRows(YEAR-1) : [];
+  const actP  = repActuals(prevRows);
+
+  const sum = (a,n) => (a||[]).slice(0,n).reduce((s,v)=>s+(Number(v)||0),0);
+  const names = [...new Set([...Object.keys(goals), ...Object.keys(actN), ...Object.keys(actP)])];
+
+  let list = names.map(nm=>{
+    const g = goals[nm] || Array(12).fill(0);
+    const a = actN[nm]  || Array(12).fill(0);
+    const p = actP[nm]  || Array(12).fill(0);
+    return {
+      nm, g, a, p,
+      mg: g[M-1]||0, ma: a[M-1]||0, mp: p[M-1]||0,
+      prev: M>1 ? (a[M-2]||0) : 0,
+      cg: sum(g,M), ca: sum(a,M), cp: sum(p,M),
+      yg: sum(g,12), ya: sum(a,12), yp: sum(p,12)
+    };
+  });
+  if(MON.hideEmpty) list = list.filter(r => r.mg || r.ma || r.cg || r.ca || r.cp);
+  const q = MON.q.trim().toLowerCase();
+  if(q) list = list.filter(r => r.nm.toLowerCase().includes(q));
+
+  const rate = (a,b) => b ? (a/b*100) : 0;
+  const SORTS = {
+    act:  (x,y)=> y.ma - x.ma,
+    goal: (x,y)=> y.mg - x.mg,
+    rate: (x,y)=> rate(y.ma,y.mg) - rate(x.ma,x.mg),
+    cum:  (x,y)=> y.ca - x.ca,
+    name: (x,y)=> x.nm.localeCompare(y.nm,"ko")
+  };
+  list.sort(SORTS[MON.sort] || SORTS.act);
+
+  /* 합계 KPI */
+  const T = list.reduce((t,r)=>({
+    mg:t.mg+r.mg, ma:t.ma+r.ma, mp:t.mp+r.mp, prev:t.prev+r.prev,
+    cg:t.cg+r.cg, ca:t.ca+r.ca, cp:t.cp+r.cp
+  }), {mg:0,ma:0,mp:0,prev:0,cg:0,ca:0,cp:0});
+
+  const tile = (cls,t,v,s2,extra="") =>
+    `<div class="kpi ${cls}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s2}</div>${extra}</div>`;
+  const meter = r => `<div class="rate-bar"><i class="${r<100?"under":""}" style="width:${Math.min(100,Math.max(0,r)).toFixed(1)}%"></i></div>`;
+  const sign = v => (v>=0?"+":"−")+eok(Math.abs(v));
+
+  $("monKpis").innerHTML =
+      tile("prop", `${M}월 목표 합계`, eok(T.mg), comma(T.mg)+"원")
+    + tile("win",  `${M}월 실적 합계`, eok(T.ma), comma(T.ma)+"원")
+    + tile("now",  `${M}월 달성율`, rate(T.ma,T.mg).toFixed(1)+"%",
+           `전월 ${eok(T.prev)} · 전월비 ${sign(T.ma-T.prev)}`, meter(rate(T.ma,T.mg)))
+    + tile("now",  `1~${M}월 누적 달성율`, rate(T.ca,T.cg).toFixed(1)+"%",
+           `${eok(T.ca)} / ${eok(T.cg)}`, meter(rate(T.ca,T.cg)))
+    + tile("", `전년 동기 대비`, (T.ca-T.cp>=0?"+":"−")+Math.abs(rate(T.ca-T.cp,T.cp)).toFixed(1)+"%",
+           `${YEAR-1}년 ${eok(T.cp)} → ${eok(T.ca)}`);
+
+  if(!list.length){
+    $("monList").innerHTML = ""; $("monEmpty").classList.remove("hide");
+    $("monInfo").textContent = ""; return;
+  }
+  $("monEmpty").classList.add("hide");
+
+  const cls = r => r >= 100 ? "ok" : (r > 0 ? "low" : "dimv");
+  const dcls = v => v > 0 ? "ok" : (v < 0 ? "low" : "dimv");
+
+  $("monList").innerHTML = list.map(r=>{
+    const mr = rate(r.ma, r.mg), cr = rate(r.ca, r.cg);
+    const pd = r.ma - r.prev, yd = r.ma - r.mp;
+    const open = !!MON.open[r.nm];
+    return `<div class="mon-item ${open?"open":""}" data-nm="${esc(r.nm)}">
+      <div class="mon-row">
+        <span class="c1"><span class="arw">▶</span>${esc(r.nm)}</span>
+        <span class="c2 dimv">${eok(r.mg)}</span>
+        <span class="c2 strong">${eok(r.ma)}</span>
+        <span class="c2 ${cls(mr)}">${r.mg?mr.toFixed(1)+"%":"-"}</span>
+        <span class="c2 ${dcls(pd)}">${pd?sign(pd):"-"}</span>
+        <span class="c2 ${dcls(yd)}">${r.mp||r.ma?sign(yd):"-"}</span>
+        <span class="c2 dimv">${eok(r.cg)}</span>
+        <span class="c2 strong">${eok(r.ca)}</span>
+        <span class="c2 ${cls(cr)}">${r.cg?cr.toFixed(1)+"%":"-"}</span>
+      </div>
+      ${open ? monDetail(r, M) : ""}
+    </div>`;
+  }).join("");
+
+  $("monList").querySelectorAll(".mon-row").forEach(row=>{
+    row.onclick = ()=>{
+      const nm = row.closest(".mon-item").dataset.nm;
+      MON.open[nm] = !MON.open[nm];
+      renderMonthly();
+    };
+  });
+
+  const openN = Object.values(MON.open).filter(Boolean).length;
+  $("monInfo").textContent =
+    `미디어렙사 ${comma(list.length)}개 · ${M}월 목표 ${comma(T.mg)}원 / 실적 ${comma(T.ma)}원 (${rate(T.ma,T.mg).toFixed(1)}%)`
+    + ` · 1~${M}월 누적 ${rate(T.ca,T.cg).toFixed(1)}%`
+    + (openN?` · ${openN}개 펼침`:"")
+    + ` | 렙사 목표 합계는 미디어렙 채널 기준이라 전사 목표와 다릅니다.`;
+}
+
+/** 펼쳤을 때 — "미디어렙사 Monthly" 양식과 같은 지표 + 12개월 표 */
+function monDetail(r, M){
+  const rate = (a,b) => b ? (a/b*100) : 0;
+  const sign = v => (v>=0?"+":"−")+eok(Math.abs(v));
+  const pct  = (a,b) => b ? ((a/b*100).toFixed(2)+"%") : "-";
+  const cell = (t,v,s2,color="") =>
+    `<div class="mon-cell"><div class="t">${t}</div><div class="v" style="${color}">${v}</div><div class="s">${s2||"&nbsp;"}</div></div>`;
+  const col = v => v>0 ? "color:var(--win)" : (v<0 ? "color:var(--danger)" : "");
+  const rcol = v => v>=100 ? "color:var(--win)" : "color:var(--danger)";
+
+  const pd = r.ma - r.prev, yd = r.ma - r.mp, cyd = r.ca - r.cp;
+  const cy = currentYM();
+
+  const mini = `<table class="grid" style="margin-top:6px">
+    <thead><tr><th class="nos dim">구분</th>
+      ${Array.from({length:12},(_,i)=>{
+        const k = `${YEAR}-${String(i+1).padStart(2,"0")}`;
+        return `<th class="num nos${k===cy?" curcol":""}">${i+1}월</th>`;}).join("")}
+      <th class="num nos">합계</th></tr></thead>
+    <tbody>
+      <tr><td class="dim" style="color:var(--prop)">목표</td>
+        ${r.g.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}">${v?eok(v):"-"}</td>`).join("")}
+        <td class="num" style="font-weight:800;background:#f7f9fc">${eok(r.yg)}</td></tr>
+      <tr><td class="dim" style="color:var(--win)">실적</td>
+        ${r.a.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}" style="font-weight:700">${v?eok(v):"-"}</td>`).join("")}
+        <td class="num" style="font-weight:800;background:#f7f9fc">${eok(r.ya)}</td></tr>
+      <tr><td class="dim">달성율</td>
+        ${r.g.map((v,i)=>{
+          const k = `${YEAR}-${String(i+1).padStart(2,"0")}`;
+          const rr = rate(r.a[i], v);
+          return `<td class="num${k===cy?" curcol":""}" style="${v?rcol(rr):""}">${v?rr.toFixed(0)+"%":"-"}</td>`;
+        }).join("")}
+        <td class="num" style="font-weight:800;background:#f7f9fc">${r.yg?rate(r.ya,r.yg).toFixed(1)+"%":"-"}</td></tr>
+      <tr><td class="dim" style="color:var(--muted)">${YEAR-1}년 실적</td>
+        ${r.p.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}" style="color:var(--muted)">${v?eok(v):"-"}</td>`).join("")}
+        <td class="num" style="font-weight:800;background:#f7f9fc">${eok(r.yp)}</td></tr>
+    </tbody></table>`;
+
+  return `<div class="mon-body">
+    <div class="mon-sec">${M}월</div>
+    <div class="mon-grid">
+      ${cell("목표", eok(r.mg), comma(r.mg)+"원")}
+      ${cell("실적", eok(r.ma), comma(r.ma)+"원")}
+      ${cell("달성율", r.mg?pct(r.ma,r.mg):"-", r.mg?`목표 ${eok(r.mg)} 대비`:"목표 미등록", r.mg?rcol(rate(r.ma,r.mg)):"")}
+      ${cell("전월", eok(r.prev), M>1?`${M-1}월 실적`:"해당 없음")}
+      ${cell("전월비", pd?sign(pd):"-", r.prev?pct(pd,r.prev):"", col(pd))}
+      ${cell(`${YEAR-1}년 ${M}월`, eok(r.mp), comma(r.mp)+"원")}
+      ${cell("증감 (YoY)", (r.mp||r.ma)?sign(yd):"-", "", col(yd))}
+      ${cell("증감율 (YoY)", r.mp?pct(yd,r.mp):"-", r.mp?"":"전년 실적 없음", col(yd))}
+    </div>
+    <div class="mon-sec">연간 누적 (1~${M}월)</div>
+    <div class="mon-grid">
+      ${cell("목표", eok(r.cg), comma(r.cg)+"원")}
+      ${cell("실적", eok(r.ca), comma(r.ca)+"원")}
+      ${cell("달성율", r.cg?pct(r.ca,r.cg):"-", r.cg?`목표 ${eok(r.cg)} 대비`:"목표 미등록", r.cg?rcol(rate(r.ca,r.cg)):"")}
+      ${cell(`${YEAR-1}년 동기`, eok(r.cp), comma(r.cp)+"원")}
+      ${cell("증감 (YoY)", (r.cp||r.ca)?sign(cyd):"-", "", col(cyd))}
+      ${cell("증감율 (YoY)", r.cp?pct(cyd,r.cp):"-", r.cp?"":"전년 실적 없음", col(cyd))}
+    </div>
+    <div class="mon-sec">${YEAR}년 월별</div>
+    <div style="overflow-x:auto">${mini}</div>
+  </div>`;
+}
+</script>
+<script>
 /* ===================== 엑셀 내려받기 ===================== */
 function exportExcel(){
   const list = VIEW==="list" ? filtered() : ROWS.slice().sort((a,b)=>String(a.propose_date).localeCompare(String(b.propose_date)));
@@ -2417,6 +2810,18 @@ function bindUI(){
   $("btnPrev").onclick = ()=>{ if(PAGE>1){ PAGE--; renderList(); } };
   $("btnNext").onclick = ()=>{ PAGE++; renderList(); };
   $("pageSize").onchange = ()=>{ PAGE_SIZE = Number($("pageSize").value); PAGE=1; renderList(); };
+
+  /* Monthly */
+  $("monMonth").onchange = ()=>{ MON.month = $("monMonth").value; renderMonthly(); };
+  $("monSort").onchange  = ()=>{ MON.sort  = $("monSort").value;  renderMonthly(); };
+  $("monHideEmpty").onchange = ()=>{ MON.hideEmpty = $("monHideEmpty").checked; renderMonthly(); };
+  let mt = null;
+  $("monQ").addEventListener("input", ()=>{ clearTimeout(mt); mt = setTimeout(()=>{ MON.q = $("monQ").value; renderMonthly(); }, 200); });
+  $("monExpandAll").onclick = ()=>{
+    $("monList").querySelectorAll(".mon-item").forEach(el=> MON.open[el.dataset.nm] = true);
+    renderMonthly();
+  };
+  $("monCollapseAll").onclick = ()=>{ MON.open = {}; renderMonthly(); };
 
   /* 연도 비교 */
   $("cmpA").onchange   = ()=>{ CMP.a = Number($("cmpA").value); renderCompare(); };
