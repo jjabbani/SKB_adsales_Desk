@@ -161,6 +161,21 @@ table.grid th.clip{max-width:150px}
 .set-item input.ed{flex:1;padding:4px 7px;border:1px solid var(--brand);border-radius:6px}
 .set-add{padding:9px 12px;border-top:1px solid var(--line2);display:flex;gap:6px}
 .set-add input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px}
+/* ---------- 매출목표 / 현재월 강조 ---------- */
+table.grid tr.now td{background:#eef4ff !important;font-weight:800;
+  border-top:2px solid var(--brand);border-bottom:2px solid var(--brand)}
+table.grid tr.now td.dim{background:#e3edfd !important;color:var(--brand)}
+table.grid tr.now td:first-child::after{content:" ◀ 현재";color:var(--brand);font-size:10.5px;font-weight:700}
+table.grid tr.dim-empty td{color:var(--muted)}
+.kpi.now{border-color:#bcd3f7;background:linear-gradient(180deg,#f5f9ff,#fff);box-shadow:0 1px 0 #dbe7fb}
+.kpi.now .t{color:var(--brand)}
+.rate-bar{height:5px;background:#eef1f6;border-radius:3px;margin-top:6px;overflow:hidden}
+.rate-bar i{display:block;height:100%;border-radius:3px;background:var(--win-mark)}
+.rate-bar i.under{background:var(--prop-mark)}
+td.clickable{cursor:pointer;text-decoration:underline;text-decoration-color:#c9d6ea;
+  text-underline-offset:3px}
+td.clickable:hover{background:var(--brand-soft);color:var(--brand)}
+
 /* ---------- 상위 10 막대 ---------- */
 .mini{height:4px;background:#eef1f6;border-radius:3px;margin-top:5px;width:100%}
 .mini i{display:block;height:100%;background:var(--win-mark);border-radius:3px}
@@ -245,6 +260,21 @@ table.grid tr.tot td.dim{background:#f7f9fc}
       </div>
     </div>
 
+    <!-- 매출목표 대비 실적 -->
+    <div class="card">
+      <div class="card-h">
+        <h2 id="goalTitle">매출목표 대비 실적</h2>
+        <span class="hint" style="margin:0">실적은 <b>매출월 기준 수주</b> 금액입니다.</span>
+        <div class="spacer"></div>
+        <div class="legend" id="goalLegend"></div>
+      </div>
+      <div class="kpis" id="goalKpis" style="margin:14px 16px"></div>
+      <div class="tbl-wrap" style="max-height:none">
+        <table class="grid" id="goalTbl"></table>
+      </div>
+      <div class="tbl-foot"><span id="goalInfo"></span></div>
+    </div>
+
     <div class="kpis" id="kpis"></div>
 
     <div class="set-grid" style="grid-template-columns:repeat(auto-fit,minmax(330px,1fr))">
@@ -287,8 +317,13 @@ table.grid tr.tot td.dim{background:#f7f9fc}
     <div class="card">
       <div class="card-h">
         <h2>항목별 매출 분석 <span class="hint" style="margin:0 0 0 4px" id="pvDimName">미디어렙별</span></h2>
-        <span class="hint" style="margin:0">매출월 기준 <b>수주 건</b>만 집계합니다.</span>
+        <span class="hint" style="margin:0" id="pvBasis">매출월 기준 <b>수주 건</b>만 집계합니다.</span>
         <div class="spacer"></div>
+        <div class="seg" id="pvStage" style="margin-right:6px">
+          <button data-s="수주" class="on">수주</button>
+          <button data-s="제안">제안</button>
+          <button data-s="">전체</button>
+        </div>
         <div class="seg" id="pvValue">
           <button data-v="amount" class="on">금액</button>
           <button data-v="count">건수</button>
@@ -325,7 +360,10 @@ table.grid tr.tot td.dim{background:#f7f9fc}
         <table class="grid" id="pivotTbl"></table>
         <div id="pivotEmpty" class="empty hide">조건에 맞는 수주 데이터가 없습니다.</div>
       </div>
-      <div class="tbl-foot"><span id="pvInfo"></span></div>
+      <div class="tbl-foot"><span id="pvInfo"></span>
+        <div class="spacer"></div>
+        <span class="hint" style="margin:0">숫자를 클릭하면 해당 건의 광고주 목록이 열립니다.</span>
+      </div>
     </div>
   </section>
 
@@ -434,6 +472,7 @@ table.grid tr.tot td.dim{background:#f7f9fc}
   <!-- ---------- 설정 ---------- -->
   <section id="viewSettings" class="hide">
     <div id="roleNote" class="role-note"></div>
+    <div class="card" id="targetCard"></div>
     <div class="set-grid" id="setGrid"></div>
   </section>
 </main>
@@ -477,6 +516,24 @@ table.grid tr.tot td.dim{background:#f7f9fc}
       <div class="spacer"></div>
       <button class="btn" data-close="rowModal">취소</button>
       <button id="btnSaveRow" class="btn primary">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 상세 내역(드릴다운) 모달 ================= -->
+<div id="drillModal" class="modal-bg hide">
+  <div class="modal" style="max-width:1040px">
+    <div class="modal-h"><h3 id="drillTitle">상세 내역</h3><button class="btn ghost sm x" data-close="drillModal">✕</button></div>
+    <div class="modal-b" style="padding:0">
+      <div class="kpis" id="drillKpis" style="margin:16px 20px"></div>
+      <div class="tbl-wrap" style="max-height:56vh">
+        <table class="grid" id="drillTbl"></table>
+      </div>
+    </div>
+    <div class="modal-f">
+      <span class="hint" id="drillInfo" style="margin:0"></span>
+      <div class="spacer"></div>
+      <button class="btn" data-close="drillModal">닫기</button>
     </div>
   </div>
 </div>
@@ -541,7 +598,9 @@ const SETTINGS = {
                 "교육 및 복지후생","화장품 및 보건용품","패션","전기전자","자동차"],
   promotion:   ["신규광고주","제안프로모션","공공지자체","증액프로모션","커머스링크"],
   added_value: ["소노리조트","약국미디어보드","카카오VX","이마트DOOH"],
-  years:       []
+  years:       [],
+  /* 매출목표 — { "연도": { goal:[12개월], trend:[12개월] } } · 설정 탭에서 수정 */
+  targets:     {"2025": {"goal": [1720000000, 1630000000, 2010000000, 2050000000, 2120000000, 2090000000, 2050000000, 1960000000, 2240000000, 2450000000, 2590000000, 2580000000]}, "2026": {"goal": [1775000000, 1740000000, 2050000000, 1990000000, 1980000000, 1880000000, 1840000000, 2100000000, 2160000000, 2270000000, 2330000000, 2470000000], "trend": [1788313723, 1536053904, 1595161946, 1559390214, 1563205889, 1448366108, 1600449860, 1822949860, 1958149860, 2128149860, 2358149860, 2658149860]}}
 };
 
 /* 엑셀 컬럼 ↔ DB 필드 매핑 (순서 = 엑셀 열 순서) */
@@ -577,7 +636,7 @@ let SORT = { k:"propose_date", dir:"desc" };
 let EDIT_ID = null;
 let IMPORT_ROWS = null;
 let rtChannel = null;
-let PV = { dim:"rep", value:"amount", q:"", month:"", showFuture:false };
+let PV = { dim:"rep", value:"amount", q:"", month:"", showFuture:false, stage:"수주" };
 
 /* ===================== 유틸 ===================== */
 const $  = (id) => document.getElementById(id);
@@ -682,6 +741,14 @@ function optionsFor(key){
   ROWS.forEach(r=>{ const v=(r[key]||"").trim(); if(v) set.add(v); });
   return [...set].sort((a,b)=>a.localeCompare(b,"ko"));
 }
+/** 해당 연도의 목표 배열 (없으면 빈 배열) — kind: "goal" | "trend" */
+function targetsOf(year, kind){
+  const t = (SETTINGS.targets || {})[String(year)];
+  const arr = t && t[kind];
+  return Array.isArray(arr) && arr.length === 12 ? arr.map(v=>Number(v)||0) : [];
+}
+function hasTrend(year){ return targetsOf(year, "trend").length === 12; }
+
 /** 팀장(lead) · 마스터(master) = 전체 수정·삭제 + 설정 관리 */
 function isAdmin(){ return !!ME && (ME.role==="lead" || ME.role==="master"); }
 function canEdit(row){ return !!ME && (isAdmin() || row.created_by===ME.id); }
@@ -766,8 +833,9 @@ async function loadSettings(){
   if(error || !data) return;
   data.forEach(r=>{
     let items = r.items;
-    if(typeof items === "string"){ try{ items = JSON.parse(items); }catch(e){ items = []; } }
-    if(Array.isArray(items)) SETTINGS[r.key] = items;
+    if(typeof items === "string"){ try{ items = JSON.parse(items); }catch(e){ items = null; } }
+    if(r.key === "targets"){ if(items && typeof items === "object" && !Array.isArray(items)) SETTINGS.targets = items; }
+    else if(Array.isArray(items)) SETTINGS[r.key] = items;
   });
 }
 
@@ -1203,6 +1271,104 @@ function syncMonthPicker(){
   sel.value = CUR_MONTH;
 }
 
+/* =====================================================================
+   매출목표 대비 실적 — 화면 최상단
+   목표/Trend는 설정 탭에서 관리하고, 실적은 매출월 기준 수주 금액입니다.
+   ===================================================================== */
+function renderTargets(){
+  const goal  = targetsOf(YEAR, "goal");
+  const trend = targetsOf(YEAR, "trend");
+  const useTrend = trend.length === 12;
+  const curM = Number(CUR_MONTH.slice(5));
+
+  // 월별 실적 (매출월 기준 수주)
+  const act = Array(12).fill(0), cnt = Array(12).fill(0);
+  ROWS.forEach(r=>{
+    if(r.stage !== "수주") return;
+    const m = Number(String(r.revenue_month||"").slice(5));
+    if(m>=1 && m<=12){ act[m-1] += Number(r.amount)||0; cnt[m-1]++; }
+  });
+
+  $("goalTitle").textContent = `${YEAR}년 매출목표 대비 실적`;
+  $("goalLegend").innerHTML = useTrend
+    ? `<span><i style="background:var(--prop-mark)"></i>목표매출</span>
+       <span><i style="background:#9aa7bd"></i>Trend</span>
+       <span><i style="background:var(--win-mark)"></i>달성 매출</span>`
+    : `<span><i style="background:var(--prop-mark)"></i>목표매출</span>
+       <span><i style="background:var(--win-mark)"></i>달성 매출</span>`;
+
+  if(!goal.length){
+    $("goalKpis").innerHTML = "";
+    $("goalTbl").innerHTML = `<tbody><tr><td class="empty">${YEAR}년 매출목표가 등록되어 있지 않습니다. 설정 탭 → 매출목표 관리에서 입력해 주세요.</td></tr></tbody>`;
+    $("goalInfo").textContent = "";
+    return;
+  }
+
+  const sum = a => a.reduce((s,v)=>s+v,0);
+  const yG = sum(goal), yT = useTrend ? sum(trend) : 0, yA = sum(act);
+  // 누적(1~기준월)
+  const cG = sum(goal.slice(0, curM)), cT = useTrend ? sum(trend.slice(0, curM)) : 0, cA = sum(act.slice(0, curM));
+  const pct = (a,b) => b ? (a/b*100) : 0;
+  const mG = goal[curM-1]||0, mT = useTrend ? (trend[curM-1]||0) : 0, mA = act[curM-1]||0;
+
+  const bar = (r) => `<div class="rate-bar"><i class="${r<100?"under":""}" style="width:${Math.min(100,Math.max(0,r)).toFixed(1)}%"></i></div>`;
+  const tile = (cls,t,v,s2,extra="") =>
+    `<div class="kpi ${cls}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s2}</div>${extra}</div>`;
+
+  $("goalKpis").innerHTML =
+      tile("prop", `${YEAR}년 목표매출`, comma(yG)+"원", shortWon(yG))
+    + (useTrend ? tile("", `${YEAR}년 Trend`, comma(yT)+"원", shortWon(yT)) : "")
+    + tile("win", `달성 매출 (1~${curM}월)`, comma(cA)+"원", `연간 ${shortWon(yA)} 누적`)
+    + tile("now", `누적 달성률 (1~${curM}월)`, pct(cA,cG).toFixed(1)+"%",
+           `목표 ${shortWon(cG)} 대비${useTrend?` · Trend ${pct(cA,cT).toFixed(1)}%`:""}`, bar(pct(cA,cG)))
+    + tile("now", `${curM}월 달성률`, pct(mA,mG).toFixed(1)+"%",
+           `${shortWon(mA)} / ${shortWon(mG)}${useTrend?` · Trend ${pct(mA,mT).toFixed(1)}%`:""}`, bar(pct(mA,mG)));
+
+  const rateCell = (a,g) => {
+    if(!g) return '<td class="num">-</td>';
+    const r = pct(a,g);
+    return `<td class="num" style="color:${r>=100?"var(--win)":r>=90?"var(--text)":"var(--danger)"};font-weight:700">${r.toFixed(1)}%</td>`;
+  };
+  const head = `<thead><tr>
+      <th class="nos dim">월</th><th class="num nos">목표매출</th>
+      ${useTrend?'<th class="num nos">Trend</th>':''}
+      <th class="num nos">달성 매출</th><th class="num nos">수주 건수</th>
+      <th class="num nos">달성률(목표)</th>${useTrend?'<th class="num nos">달성률(Trend)</th>':''}
+    </tr></thead>`;
+  const body = goal.map((g,i)=>{
+    const m = i+1, a = act[i], t = useTrend ? trend[i] : 0;
+    const future = (YEAR === new Date().getFullYear()) && m > curM;
+    return `<tr class="${m===curM?"now":""}" style="${future?"color:var(--muted)":""}">
+      <td class="dim">${m}월</td>
+      <td class="num">${comma(g)}</td>
+      ${useTrend?`<td class="num">${comma(t)}</td>`:''}
+      <td class="num" style="font-weight:700">${a?comma(a):"-"}</td>
+      <td class="num">${cnt[i]?comma(cnt[i]):"-"}</td>
+      ${rateCell(a,g)}${useTrend?rateCell(a,t):''}
+    </tr>`;
+  }).join("");
+  const tot = `<tr class="tot">
+      <td class="dim">연간 합계</td>
+      <td class="num">${comma(yG)}</td>
+      ${useTrend?`<td class="num">${comma(yT)}</td>`:''}
+      <td class="num">${comma(yA)}</td><td class="num">${comma(sum(cnt))}</td>
+      <td class="num">${pct(yA,yG).toFixed(1)}%</td>${useTrend?`<td class="num">${pct(yA,yT).toFixed(1)}%</td>`:''}
+    </tr>
+    <tr class="tot">
+      <td class="dim">1~${curM}월 누적</td>
+      <td class="num">${comma(cG)}</td>
+      ${useTrend?`<td class="num">${comma(cT)}</td>`:''}
+      <td class="num">${comma(cA)}</td><td class="num">${comma(sum(cnt.slice(0,curM)))}</td>
+      <td class="num" style="color:${pct(cA,cG)>=100?"var(--win)":"var(--danger)"}">${pct(cA,cG).toFixed(1)}%</td>
+      ${useTrend?`<td class="num" style="color:${pct(cA,cT)>=100?"var(--win)":"var(--danger)"}">${pct(cA,cT).toFixed(1)}%</td>`:''}
+    </tr>`;
+  $("goalTbl").innerHTML = head + "<tbody>" + body + tot + "</tbody>";
+  $("goalInfo").textContent =
+    `${curM}월 목표 ${comma(mG)}원 · 달성 ${comma(mA)}원 (${pct(mA,mG).toFixed(1)}%)`
+    + (useTrend ? ` · Trend ${comma(mT)}원 대비 ${pct(mA,mT).toFixed(1)}%` : "")
+    + ` | 1~${curM}월 누적 달성률 ${pct(cA,cG).toFixed(1)}%`;
+}
+
 function renderCurrent(){
   syncMonthPicker();
   const mNum = Number(CUR_MONTH.slice(5));
@@ -1222,16 +1388,20 @@ function renderCurrent(){
     + tile("win","수주 건수",  comma(win.length)+"건", `${mNum}월 매출월 기준`)
     + tile("win","수주 금액",  comma(wa)+"원", `${shortWon(wa)} · 수주율(금액) ${rate.toFixed(1)}%`);
 
+  renderTargets();
+
   renderTop10("topProduct", win, "product", "상품");
   renderTop10("topChannel", win, "channel", "채널");
-  renderTop10("topRep",     win, "rep",     "미디어렙");
+  renderTop10("topRep",     win, "rep",     "미디어렙", true);   // 미디어렙사별은 미입력 제외
 }
 
 /** 그 달 수주 건을 항목별로 묶어 금액 상위 10개 */
-function renderTop10(elId, rows, key, label){
+function renderTop10(elId, rows, key, label, dropEmpty){
   const map = {};
   rows.forEach(r=>{
-    const k = (r[key]||"").trim() || "(미입력)";
+    const raw = (r[key]||"").trim();
+    if(!raw && dropEmpty) return;
+    const k = raw || "(미입력)";
     const t = map[k] || (map[k] = { k, a:0, c:0 });
     t.a += Number(r.amount)||0; t.c++;
   });
@@ -1366,52 +1536,63 @@ const PV_SEARCHABLE = ["rep","agency","advertiser","brand"];
 const PV_DROP_EMPTY = ["rep"];
 
 function renderPivot(){
-  const dim = PV.dim, isAmt = PV.value==="amount";
+  const dim = PV.dim, isAmt = PV.value==="amount", stage = PV.stage;
   const sel = $("pvDim").selectedOptions[0];
   $("pvDimName").textContent = sel ? sel.text : PV_LABEL[dim];
   $("pvQBox").classList.toggle("hide", !PV_SEARCHABLE.includes(dim));
+  $("pvBasis").innerHTML = stage === "수주" ? '매출월 기준 <b>수주 건</b>만 집계합니다.'
+    : stage === "제안" ? '제안월 기준 <b>제안 건</b>만 집계합니다.'
+    : '수주는 <b>매출월</b>, 제안은 <b>제안월</b> 기준으로 함께 집계합니다.';
   syncFutureBtns();
 
   const cols = PV.month ? [PV.month] : monthKeys();
-
   const q = PV.q.trim().toLowerCase();
   const map = {};
   let outCount = 0;
   ROWS.forEach(r=>{
-    if(r.stage!=="수주") return;
-    if(!cols.includes(r.revenue_month)){ if(!PV.month) outCount++; return; }
+    if(stage && r.stage !== stage) return;
+    const ym = r.stage === "수주" ? r.revenue_month : r.propose_month;
+    if(!cols.includes(ym)){ if(!PV.month) outCount++; return; }
     const raw = (r[dim]||"").trim();
     if(!raw && PV_DROP_EMPTY.includes(dim)) return;   // 미디어렙사별은 미입력 제외
     const k = raw || "(미입력)";
     if(q && PV_SEARCHABLE.includes(dim) && !k.toLowerCase().includes(q)) return;
     const t = map[k] || (map[k] = { k, c:{}, a:{}, tc:0, ta:0 });
     const amt = Number(r.amount)||0;
-    t.c[r.revenue_month] = (t.c[r.revenue_month]||0)+1;
-    t.a[r.revenue_month] = (t.a[r.revenue_month]||0)+amt;
+    t.c[ym] = (t.c[ym]||0)+1;
+    t.a[ym] = (t.a[ym]||0)+amt;
     t.tc++; t.ta += amt;
   });
-  const list = Object.values(map).sort((x,y)=> isAmt ? y.ta-x.ta : y.tc-x.tc);
+  // 값 큰 순, 단 "(미입력)"은 항상 맨 아래
+  const list = Object.values(map).sort((x,y)=>{
+    if(x.k === "(미입력)") return 1;
+    if(y.k === "(미입력)") return -1;
+    return isAmt ? y.ta-x.ta : y.tc-x.tc;
+  });
 
   if(!list.length){
     $("pivotTbl").innerHTML = "";
     $("pivotEmpty").classList.remove("hide");
+    $("pivotEmpty").textContent = `조건에 맞는 ${stage||"제안·수주"} 데이터가 없습니다.`;
     $("pvInfo").textContent = "";
     return;
   }
   $("pivotEmpty").classList.add("hide");
 
   const grandT = list.reduce((s,r)=>s+(isAmt?r.ta:r.tc),0) || 1;
-  const cell = (v)=> v ? comma(v) : "-";
+  const cell = (v, k, m)=> v
+    ? `<td class="num clickable" data-k="${esc(k)}" data-m="${m}">${comma(v)}</td>`
+    : `<td class="num">-</td>`;
 
   const head = `<thead><tr>
       <th class="nos dim">${PV_LABEL[dim]}</th>
       ${cols.map(m=>`<th class="num nos">${Number(m.slice(5))}월</th>`).join("")}
       <th class="num nos">합계</th><th class="num nos">비중</th></tr></thead>`;
 
-  const body = list.map(r=>`<tr>
+  const body = list.map(r=>`<tr class="${r.k==="(미입력)"?"dim-empty":""}">
       <td class="dim">${esc(r.k)}</td>
-      ${cols.map(m=>`<td class="num">${cell(isAmt?r.a[m]:r.c[m])}</td>`).join("")}
-      <td class="num" style="font-weight:800;background:#f7f9fc">${comma(isAmt?r.ta:r.tc)}</td>
+      ${cols.map(m=>cell(isAmt?r.a[m]:r.c[m], r.k, m)).join("")}
+      <td class="num clickable" data-k="${esc(r.k)}" data-m="" style="font-weight:800;background:#f7f9fc">${comma(isAmt?r.ta:r.tc)}</td>
       <td class="num" style="color:var(--muted)">${(((isAmt?r.ta:r.tc)/grandT)*100).toFixed(1)}%</td>
     </tr>`).join("");
 
@@ -1421,14 +1602,77 @@ function renderPivot(){
       <td class="num">${comma(grandT)}</td><td class="num">100%</td></tr>`;
 
   $("pivotTbl").innerHTML = head + "<tbody>" + body + totRow + "</tbody>";
+
+  $("pivotTbl").querySelectorAll("td.clickable").forEach(td=>{
+    td.onclick = ()=> openDrill(dim, td.dataset.k, td.dataset.m, stage);
+  });
+
   const rangeTxt = PV.month
     ? Number(PV.month.slice(5))+"월"
     : cols.map(m=>Number(m.slice(5))+"월").slice(-1)[0] + "~" + cols.map(m=>Number(m.slice(5))+"월")[0];
   $("pvInfo").textContent =
-    `${PV_LABEL[dim]} ${comma(list.length)}개 · ${rangeTxt} 수주 `
+    `${PV_LABEL[dim]} ${comma(list.length)}개 · ${rangeTxt} ${stage||"제안+수주"} `
     + (isAmt ? `합계 ${comma(grandT)}원` : `합계 ${comma(grandT)}건`)
     + (outCount ? ` · 표시 범위 밖 ${comma(outCount)}건 제외` : "")
     + (PV_DROP_EMPTY.includes(dim) ? " · 미입력 제외" : "");
+}
+
+/* =====================================================================
+   드릴다운 — 피벗의 숫자를 클릭하면 그 안에 든 건들을 보여줍니다
+   ===================================================================== */
+function openDrill(dim, key, ym, stage){
+  const cols = ym ? [ym] : (PV.month ? [PV.month] : monthKeys());
+  const rows = ROWS.filter(r=>{
+    if(stage && r.stage !== stage) return false;
+    const m = r.stage === "수주" ? r.revenue_month : r.propose_month;
+    if(!cols.includes(m)) return false;
+    const raw = (r[dim]||"").trim();
+    if(!raw && PV_DROP_EMPTY.includes(dim)) return false;
+    return (raw || "(미입력)") === key;
+  }).sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0));
+
+  const amt = rows.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  const period = ym ? `${YEAR}년 ${Number(ym.slice(5))}월`
+                    : (PV.month ? `${YEAR}년 ${Number(PV.month.slice(5))}월` : `${YEAR}년 전체`);
+  $("drillTitle").textContent = `${PV_LABEL[dim]} · ${key} — ${period} ${stage||"제안+수주"}`;
+
+  const tile = (cls,t,v,s2)=>`<div class="kpi ${cls}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`;
+  const win = rows.filter(r=>r.stage==="수주"), prop = rows.filter(r=>r.stage==="제안");
+  const wa = win.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  const pa = prop.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  $("drillKpis").innerHTML =
+      tile("", "건수", comma(rows.length)+"건", period)
+    + tile("", "금액", comma(amt)+"원", shortWon(amt))
+    + tile("win", "수주", comma(win.length)+"건", comma(wa)+"원")
+    + tile("prop", "제안", comma(prop.length)+"건", comma(pa)+"원");
+
+  if(!rows.length){
+    $("drillTbl").innerHTML = `<tbody><tr><td class="empty">해당 조건의 데이터가 없습니다.</td></tr></tbody>`;
+    $("drillInfo").textContent = "";
+  }else{
+    $("drillTbl").innerHTML =
+      `<thead><tr>
+        <th class="nos">광고주</th><th class="nos">브랜드</th><th class="nos">채널</th>
+        <th class="nos">미디어렙</th><th class="nos">대행사</th><th class="nos">상품</th>
+        <th class="nos">업종</th><th class="nos">월</th><th class="nos">구분</th>
+        <th class="num nos">광고비</th></tr></thead><tbody>`
+      + rows.map(r=>`<tr>
+          <td style="font-weight:600">${esc(r.advertiser||"-")}</td>
+          <td class="clip" title="${esc(r.brand||"")}">${esc(trunc(r.brand||"-",14))}</td>
+          <td>${esc(r.channel||"-")}</td>
+          <td>${esc(r.rep||"-")}</td>
+          <td class="clip" title="${esc(r.agency||"")}">${esc(trunc(r.agency||"-",12))}</td>
+          <td>${esc(r.product||"-")}</td>
+          <td class="clip" title="${esc(r.industry||"")}">${esc(trunc(r.industry||"-",10))}</td>
+          <td>${monthLabel(r.stage==="수주"?r.revenue_month:r.propose_month)}</td>
+          <td><span class="pill ${esc(r.stage)}">${esc(r.stage)}</span></td>
+          <td class="num" style="font-weight:700">${comma(r.amount)}</td>
+        </tr>`).join("")
+      + `<tr class="tot"><td colspan="9">합계 ${comma(rows.length)}건</td>
+         <td class="num">${comma(amt)}</td></tr></tbody>`;
+    $("drillInfo").textContent = `광고주 ${comma(new Set(rows.map(r=>r.advertiser).filter(Boolean)).size)}개 · 금액순 정렬`;
+  }
+  $("drillModal").classList.remove("hide");
 }
 
 /* ===================== 전체 렌더 ===================== */
@@ -1447,7 +1691,7 @@ function render(){
 window.addEventListener("resize", ()=>{
   if(!ME) return;
   if(VIEW==="pivot") renderChart();
-  if(VIEW==="compare" && CMP.dim==="month") renderCompare();
+  if(VIEW==="compare" && CMP_CHARTABLE.includes(CMP.dim)) renderCompare();
 });
 </script>
 <script>
@@ -1461,6 +1705,8 @@ function renderSettings(){
     ? `현재 권한 <b>${ROLE_LABEL[ME.role]}</b> — 항목 추가·수정·삭제와 연도 추가가 가능합니다.
        이름을 바꾸면 <b>이미 등록된 데이터의 값도 함께 바꿀지</b> 물어봅니다.`
     : `현재 권한 <b>팀원</b> — 선택 항목은 보기만 가능합니다. 추가·수정이 필요하면 팀장 또는 마스터에게 요청해 주세요.`;
+
+  renderTargetEditor();
 
   $("setGrid").innerHTML = SETTING_DEFS.map(d=>{
     const items = SETTINGS[d.key] || [];
@@ -1577,6 +1823,109 @@ async function delItem(key, i){
   }catch(e){ toast(errText(e)); }
 }
 
+/* =====================================================================
+   매출목표 관리 — 연도별 목표매출 / Trend (12개월)
+   ===================================================================== */
+let TGT_YEAR = null;
+
+function renderTargetEditor(){
+  const admin = isAdmin();
+  const years = [...new Set([...(YEARS||[]), ...Object.keys(SETTINGS.targets||{}).map(Number)])]
+                  .filter(Boolean).sort((a,b)=>a-b);
+  if(!years.length) years.push(YEAR);
+  if(!TGT_YEAR || !years.includes(TGT_YEAR)) TGT_YEAR = years.includes(YEAR) ? YEAR : years[years.length-1];
+
+  const goal  = targetsOf(TGT_YEAR, "goal");
+  const trend = targetsOf(TGT_YEAR, "trend");
+  const useTrend = trend.length === 12;
+  const g = i => goal[i]  || 0;
+  const t = i => trend[i] || 0;
+  const sum = a => a.reduce((s,v)=>s+(Number(v)||0),0);
+
+  const cell = (kind, i, v) => admin
+    ? `<td class="num"><input class="fld tgt" data-kind="${kind}" data-i="${i}" inputmode="numeric"
+         style="text-align:right;padding:5px 7px;min-width:120px" value="${v?comma(v):""}"></td>`
+    : `<td class="num">${v?comma(v):"-"}</td>`;
+
+  $("targetCard").innerHTML = `
+    <div class="card-h">
+      <h2>매출목표 관리</h2>
+      <span class="hint" style="margin:0">연도별 월간 목표매출과 Trend를 관리합니다. <b>현재월 현황</b> 첫 화면의 달성률이 이 값을 기준으로 계산됩니다.</span>
+      <div class="spacer"></div>
+      <label class="lb" style="margin:0 6px 0 0">연도</label>
+      <select id="tgtYear" class="fld" style="width:auto">
+        ${years.map(y=>`<option value="${y}"${y===TGT_YEAR?" selected":""}>${y}년</option>`).join("")}
+      </select>
+      ${admin ? `<label class="hint" style="margin:0;display:flex;align-items:center;gap:5px">
+        <input type="checkbox" id="tgtUseTrend" ${useTrend?"checked":""}> Trend 사용</label>
+        <button id="tgtSave" class="btn primary sm">저장</button>` : ``}
+    </div>
+    <div class="tbl-wrap" style="max-height:none">
+      <table class="grid" id="tgtTbl">
+        <thead><tr><th class="nos dim">구분</th>
+          ${Array.from({length:12},(_,i)=>`<th class="num nos">${i+1}월</th>`).join("")}
+          <th class="num nos">연간 합계</th></tr></thead>
+        <tbody>
+          <tr><td class="dim" style="color:var(--prop)">목표매출</td>
+            ${Array.from({length:12},(_,i)=>cell("goal",i,g(i))).join("")}
+            <td class="num" id="tgtSumG" style="font-weight:800;background:#f7f9fc">${comma(sum(goal))}</td></tr>
+          <tr id="tgtTrendRow" class="${useTrend?"":"hide"}"><td class="dim" style="color:var(--muted)">Trend</td>
+            ${Array.from({length:12},(_,i)=>cell("trend",i,t(i))).join("")}
+            <td class="num" id="tgtSumT" style="font-weight:800;background:#f7f9fc">${comma(sum(trend))}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tbl-foot"><span class="hint" style="margin:0">${admin
+      ? "숫자만 입력하면 천단위 콤마가 자동으로 붙습니다. 비워 두면 0으로 저장됩니다."
+      : "매출목표는 팀장·마스터만 수정할 수 있습니다."}</span></div>`;
+
+  $("tgtYear").onchange = ()=>{ TGT_YEAR = Number($("tgtYear").value); renderTargetEditor(); };
+  if(!admin) return;
+
+  const recalc = ()=>{
+    const val = kind => Array.from({length:12},(_,i)=>{
+      const el = $("targetCard").querySelector(`input.tgt[data-kind="${kind}"][data-i="${i}"]`);
+      return el ? uncomma(el.value) : 0;
+    });
+    $("tgtSumG").textContent = comma(sum(val("goal")));
+    $("tgtSumT").textContent = comma(sum(val("trend")));
+  };
+  $("targetCard").querySelectorAll("input.tgt").forEach(el=>{
+    el.addEventListener("input", ()=>{
+      const before = el.value.length - el.selectionStart;
+      el.value = uncomma(el.value) ? comma(uncomma(el.value)) : "";
+      const pos = Math.max(0, el.value.length - before);
+      el.setSelectionRange(pos, pos);
+      recalc();
+    });
+  });
+  $("tgtUseTrend").onchange = ()=>{
+    $("tgtTrendRow").classList.toggle("hide", !$("tgtUseTrend").checked);
+  };
+  $("tgtSave").onclick = saveTargets;
+}
+
+async function saveTargets(){
+  const val = kind => Array.from({length:12},(_,i)=>{
+    const el = $("targetCard").querySelector(`input.tgt[data-kind="${kind}"][data-i="${i}"]`);
+    return el ? uncomma(el.value) : 0;
+  });
+  const next = JSON.parse(JSON.stringify(SETTINGS.targets || {}));
+  const y = String(TGT_YEAR);
+  next[y] = { goal: val("goal") };
+  if($("tgtUseTrend").checked) next[y].trend = val("trend");
+  try{
+    const payload = { key:"targets", items: next, updated_at:new Date().toISOString(),
+                      updated_by: ME.id, updated_name: ME.name };
+    let { error } = await sb.from("app_settings").update(payload).eq("key", "targets");
+    if(error) ({ error } = await sb.from("app_settings").insert(payload));
+    if(error) throw error;
+    SETTINGS.targets = next;
+    renderTargetEditor();
+    toast(`${TGT_YEAR}년 매출목표를 저장했습니다.`);
+  }catch(e){ toast(errText(e)); }
+}
+
 /** 설정 목록에는 없는데 데이터에는 들어있는 값 (현재 연도 기준) */
 function dataOnly(key){
   const have = new Set(SETTINGS[key] || []);
@@ -1611,6 +1960,8 @@ function errText(e){
 let CMP = { a:null, b:null, dim:"month", value:"amount", q:"", same:true };
 const CMP_LABEL = { month:"월별", product:"상품별", channel:"채널별", rep:"미디어렙사별", industry:"업종별" };
 const CMP_SEARCHABLE = ["rep","product","industry","channel"];
+/** 그래프를 함께 그리는 구분 기준 — 항목 수가 적어 막대로 읽히는 것들 */
+const CMP_CHARTABLE = ["month","product","channel"];
 
 /** 연도별 원본을 한 번만 받아 캐시 (연도 비교에서 두 해를 동시에 씁니다) */
 const YEAR_CACHE = {};
@@ -1646,7 +1997,7 @@ function syncCompareControls(){
   $("cmpLegB").textContent = CMP.b + "년";
   $("cmpDimName").textContent = CMP_LABEL[CMP.dim];
   $("cmpQBox").classList.toggle("hide", !CMP_SEARCHABLE.includes(CMP.dim));
-  $("cmpChartBox").classList.toggle("hide", CMP.dim !== "month");
+  $("cmpChartBox").classList.toggle("hide", !CMP_CHARTABLE.includes(CMP.dim));
 
   // 올해와 비교할 때는 "같은 기간(1~이번 달)"만 대조하는 편이 정확합니다
   const now = new Date();
@@ -1694,8 +2045,12 @@ async function renderCompare(){
   }else{
     const set = new Set([...Object.keys(ma), ...Object.keys(mb)]);
     keys = [...set].filter(k => !q || k.toLowerCase().includes(q.toLowerCase()))
-                   .sort((x,y)=>((mb[y]?.[isAmt?"a":"c"]||0) - (mb[x]?.[isAmt?"a":"c"]||0))
-                              || ((ma[y]?.[isAmt?"a":"c"]||0) - (ma[x]?.[isAmt?"a":"c"]||0)));
+                   .sort((x,y)=>{
+                     if(x === "(미입력)") return 1;
+                     if(y === "(미입력)") return -1;
+                     return ((mb[y]?.[isAmt?"a":"c"]||0) - (mb[x]?.[isAmt?"a":"c"]||0))
+                         || ((ma[y]?.[isAmt?"a":"c"]||0) - (ma[x]?.[isAmt?"a":"c"]||0));
+                   });
   }
 
   const get = (m,k) => (m[k] ? (isAmt ? m[k].a : m[k].c) : 0);
@@ -1759,11 +2114,15 @@ async function renderCompare(){
     + (limit ? ` · 1~${limit}월 같은 기간 기준` : "")
     + (dim === "rep" ? " · 미입력 제외" : "");
 
-  if(dim === "month") drawCompareChart(keys, ma, mb, isAmt, a, b);
+  if(CMP_CHARTABLE.includes(dim)){
+    // 항목이 많으면 상위 10개만 그립니다 (표에는 전부 나옵니다)
+    const ck = dim === "month" ? keys : keys.filter(k=>k!=="(미입력)").slice(0, 10);
+    drawCompareChart(ck, ma, mb, isAmt, a, b, dim === "month" ? (k=>k+"월") : (k=>k));
+  }
 }
 
 /* 월별 두 해 그룹 막대 */
-function drawCompareChart(keys, ma, mb, isAmt, ya, yb){
+function drawCompareChart(keys, ma, mb, isAmt, ya, yb, labelFn){
   const host = $("cmpChart");
   const get = (m,k) => (m[k] ? (isAmt ? m[k].a : m[k].c) : 0);
   const W = Math.max(560, host.clientWidth || 900), H = 250;
@@ -1772,9 +2131,10 @@ function drawCompareChart(keys, ma, mb, isAmt, ya, yb){
   const max = Math.max(1, ...keys.map(k=>Math.max(get(ma,k), get(mb,k))));
   const step = niceStep(max), top = Math.ceil(max/step)*step;
   const y = v => P.t + ih - (v/top)*ih;
-  const band = iw / keys.length;
+  const band = iw / Math.max(1, keys.length);
   const bw = Math.max(6, Math.min(20, band*0.32));
   const GAP = 2;
+  const lab = labelFn || (k=>k);
 
   let g = "";
   for(let v=0; v<=top; v+=step){
@@ -1785,14 +2145,15 @@ function drawCompareChart(keys, ma, mb, isAmt, ya, yb){
     const cx = P.l + band*i + band/2;
     g += bar(cx - bw - GAP/2, y(get(ma,k)), bw, P.t+ih-y(get(ma,k)), "var(--prop-mark)");
     g += bar(cx + GAP/2,      y(get(mb,k)), bw, P.t+ih-y(get(mb,k)), "var(--win-mark)");
-    g += `<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="#6b7688">${k}월</text>`;
+    const txt = lab(k), short = txt.length > 7 ? txt.slice(0,6)+"…" : txt;
+    g += `<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="10.5" fill="#6b7688">${esc(short)}</text>`;
     g += `<rect class="cmphit" x="${(P.l+band*i).toFixed(1)}" y="${P.t}" width="${band.toFixed(1)}" height="${ih}"
             fill="transparent" data-k="${k}" style="cursor:pointer"/>`;
   });
   g += `<line x1="${P.l}" x2="${W-P.r}" y1="${P.t+ih}" y2="${P.t+ih}" stroke="#d7dde8" stroke-width="1"/>`;
 
   host.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" role="img"
-      aria-label="${ya}년과 ${yb}년의 월별 수주 비교 막대 그래프">${g}</svg><div id="cmpTip" class="hide"></div>`;
+      aria-label="${ya}년과 ${yb}년의 수주 비교 막대 그래프">${g}</svg><div id="cmpTip" class="hide"></div>`;
 
   const tip = $("cmpTip");
   tip.style.cssText = "position:absolute;background:#1b2230;color:#fff;padding:8px 11px;border-radius:8px;font-size:12px;pointer-events:none;z-index:50;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.22)";
@@ -1801,7 +2162,7 @@ function drawCompareChart(keys, ma, mb, isAmt, ya, yb){
     z.addEventListener("mousemove", e=>{
       const k = z.dataset.k, va = get(ma,k), vb = get(mb,k), d = vb - va;
       tip.classList.remove("hide");
-      tip.innerHTML = `<b>${k}월</b><br>`
+      tip.innerHTML = `<b>${esc(lab(k))}</b><br>`
         + `<span style="color:#f6b28e">■</span> ${ya}년 ${comma(va)}${isAmt?"원":"건"}<br>`
         + `<span style="color:#8fc0f2">■</span> ${yb}년 ${comma(vb)}${isAmt?"원":"건"}<br>`
         + `증감 ${d>=0?"+":"−"}${comma(Math.abs(d))}${isAmt?"원":"건"}`
@@ -2119,6 +2480,12 @@ function bindUI(){
   $("pvMonth").onchange = ()=>{ PV.month = $("pvMonth").value; renderPivot(); };
   let pt = null;
   $("pvQ").addEventListener("input", ()=>{ clearTimeout(pt); pt = setTimeout(()=>{ PV.q = $("pvQ").value; renderPivot(); }, 200); });
+  $("pvStage").querySelectorAll("button").forEach(b=>{
+    b.onclick = ()=>{
+      $("pvStage").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on"); PV.stage = b.dataset.s; renderPivot();
+    };
+  });
   $("pvValue").querySelectorAll("button").forEach(b=>{
     b.onclick = ()=>{
       $("pvValue").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
@@ -2126,7 +2493,8 @@ function bindUI(){
     };
   });
   $("pvReset").onclick = ()=>{
-    PV = { dim:"rep", value:"amount", q:"", month:"", showFuture:false };
+    PV = { dim:"rep", value:"amount", q:"", month:"", showFuture:false, stage:"수주" };
+    $("pvStage").querySelectorAll("button").forEach(x=>x.classList.toggle("on", x.dataset.s==="수주"));
     $("pvDim").value="rep"; $("pvQ").value=""; $("pvMonth").value="";
     $("pvValue").querySelectorAll("button").forEach(x=>x.classList.toggle("on", x.dataset.v==="amount"));
     refreshOptionLists(); renderChart(); renderMonthTable(); renderPivot();
