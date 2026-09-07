@@ -47,7 +47,8 @@ label.lb{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:
 .req::after{content:" *";color:var(--danger)}
 
 /* ---------- 로그인 ---------- */
-#authView{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+#authView,#waitView{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+#waitView.hide{display:none}
 .auth-card{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);
   border-radius:14px;padding:28px 26px;box-shadow:0 6px 24px rgba(20,30,60,.06)}
 .auth-card h1{font-size:19px;margin:0 0 4px}
@@ -162,6 +163,29 @@ table.grid th.clip{max-width:150px}
 .set-item input.ed{flex:1;padding:4px 7px;border:1px solid var(--brand);border-radius:6px}
 .set-add{padding:9px 12px;border-top:1px solid var(--line2);display:flex;gap:6px}
 .set-add input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px}
+/* ---------- 승인 대기 / 회원 관리 ---------- */
+.wait-box{background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:14px;
+  display:grid;gap:9px}
+.wait-box>div{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+.wait-box .lb{margin:0;font-size:11.5px}
+#wStatus{background:#fff3e0;color:#a8620a;border-radius:6px;padding:2px 9px;font-size:11.5px;font-weight:800}
+.pend-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--prop);
+  margin-left:6px;vertical-align:middle;box-shadow:0 0 0 3px rgba(235,104,52,.18)}
+
+.mem-h{font-size:12px;font-weight:800;margin:0 0 7px;display:flex;align-items:center;gap:7px}
+.mem-h .cnt{font-weight:600;color:var(--muted);font-size:11.5px}
+.mem-h.pend{color:var(--prop)}
+table.mem{font-size:12.5px}
+table.mem td,table.mem th{padding:7px 10px}
+table.mem td.act{white-space:nowrap;text-align:right}
+table.mem .btn.sm{padding:3px 9px;font-size:11.5px}
+.mem-empty{font-size:12.5px;color:var(--muted);padding:9px 11px;background:#fafbfd;
+  border:1px dashed var(--line);border-radius:8px}
+.st{display:inline-block;padding:1px 8px;border-radius:5px;font-size:10.5px;font-weight:800}
+.st.active{background:#e6f5ee;color:#0f7a52}
+.st.pending{background:#fff3e0;color:#a8620a}
+.st.rejected{background:#fdecec;color:#b23b3b}
+
 /* ---------- 변경 이력 배지 ---------- */
 .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:10.5px;font-weight:800;white-space:nowrap}
 .tag.new{background:#e6f5ee;color:#0f7a52}
@@ -277,6 +301,26 @@ table.grid tr.tot td.dim{background:#f7f9fc}
     <div class="row hide" id="nameRow"><label class="lb">이름</label><input id="aName" class="fld" placeholder="홍길동"></div>
     <button id="aSubmit" class="btn primary" style="width:100%;padding:10px;margin-top:6px">로그인</button>
     <div id="aMsg" class="msg"></div>
+    <p class="sub" style="margin-top:12px;font-size:11.5px">
+      신규 가입은 <b>팀장·마스터 승인</b> 후 이용할 수 있습니다.
+    </p>
+  </div>
+</div>
+
+<!-- ================= 승인 대기 ================= -->
+<div id="waitView" class="hide">
+  <div class="auth-card">
+    <h1>승인 대기 중</h1>
+    <p class="sub">가입 신청이 접수되었습니다. 팀장 또는 마스터가 승인하면 바로 이용할 수 있습니다.</p>
+    <div class="wait-box">
+      <div><span class="lb">이름</span><b id="wName">-</b></div>
+      <div><span class="lb">이메일</span><b id="wEmail">-</b></div>
+      <div><span class="lb">신청일</span><b id="wDate">-</b></div>
+      <div><span class="lb">상태</span><b id="wStatus">승인 대기</b></div>
+    </div>
+    <div id="wMsg" class="msg"></div>
+    <button id="wRecheck" class="btn primary" style="width:100%;padding:10px;margin-top:10px">승인 여부 다시 확인</button>
+    <button id="wLogout" class="btn ghost" style="width:100%;padding:9px;margin-top:7px">로그아웃</button>
   </div>
 </div>
 
@@ -294,7 +338,7 @@ table.grid tr.tot td.dim{background:#f7f9fc}
       <button data-view="compare">연도 비교</button>
       <button data-view="list">전체 데이터</button>
       <button id="btnQuickNew" class="quick">＋ 신규 등록</button>
-      <button data-view="settings">설정</button>
+      <button data-view="settings">설정<span id="pendDot" class="pend-dot hide"></span></button>
     </div>
     <div class="top-right">
       <span class="who">👤 <b id="myName">-</b><span id="roleBadge" class="badge-lead hide"></span></span>
@@ -585,6 +629,20 @@ table.grid tr.tot td.dim{background:#f7f9fc}
 
   <!-- ---------- 설정 ---------- -->
   <section id="viewSettings" class="hide">
+    <!-- 회원 관리 (팀장·마스터) -->
+    <div class="card hide" id="cardMembers" style="margin-bottom:12px">
+      <div class="card-h">
+        <h2>회원 관리</h2>
+        <span class="hint" style="margin:0">신규 가입은 <b>승인</b>해야 데이터에 접근할 수 있습니다.</span>
+        <div class="spacer"></div>
+        <button id="btnReloadMembers" class="btn sm ghost">새로고침</button>
+      </div>
+      <div class="card-b">
+        <div id="memPending"></div>
+        <div id="memActive" style="margin-top:16px"></div>
+        <div class="hint" id="memInfo" style="margin-top:10px"></div>
+      </div>
+    </div>
     <div id="roleNote" class="role-note"></div>
     <div class="card" id="targetCard"></div>
     <div class="set-grid" id="setGrid"></div>
@@ -954,8 +1012,9 @@ async function doAuth(){
       if(!name){ msg.className="msg err"; msg.textContent="이름을 입력해 주세요."; return; }
       const { error } = await sb.auth.signUp({ email, password: pw, options:{ data:{ name } } });
       if(error) throw error;
-      msg.className="msg ok"; msg.textContent="가입이 완료되었습니다. 로그인해 주세요.";
-      setTimeout(()=>setAuthMode("login"), 600);
+      msg.className="msg ok";
+      msg.textContent="가입 신청이 접수되었습니다. 팀장·마스터 승인 후 이용할 수 있습니다.";
+      setTimeout(()=>setAuthMode("login"), 1200);
     }else{
       const { error } = await sb.auth.signInWithPassword({ email, password: pw });
       if(error) throw error;
@@ -967,6 +1026,42 @@ async function doAuth(){
 }
 
 $("btnLogout").onclick = async ()=>{ await sb.auth.signOut(); location.reload(); };
+
+/* ---------- 승인 대기 화면 ---------- */
+const STATUS_LABEL = { pending:"승인 대기", rejected:"승인 거절", active:"사용 중" };
+function showWaiting(u, prof){
+  $("authView").classList.add("hide");
+  $("appView").classList.add("hide");
+  $("waitView").classList.remove("hide");
+  $("wName").textContent  = prof?.name || u.user_metadata?.name || "-";
+  $("wEmail").textContent = u.email || "-";
+  $("wDate").textContent  = prof?.created_at ? stamp(prof.created_at) : "-";
+  const st = prof?.status || "pending";
+  $("wStatus").textContent = STATUS_LABEL[st] || st;
+  const rejected = st === "rejected";
+  $("wRecheck").classList.toggle("hide", rejected);
+  if(rejected){
+    const m = $("wMsg"); m.className = "msg err";
+    m.textContent = "이 계정은 사용이 중지되었습니다. 팀장 또는 마스터에게 문의해 주세요.";
+  }
+}
+$("wLogout").onclick  = async ()=>{ await sb.auth.signOut(); location.reload(); };
+$("wRecheck").onclick = async ()=>{
+  const b = $("wRecheck"), m = $("wMsg");
+  b.disabled = true; m.className = "msg"; m.textContent = "확인 중…";
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ location.reload(); return; }
+  const { data: prof } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+  if(prof?.status === "active"){
+    m.className = "msg ok"; m.textContent = "승인되었습니다. 잠시 후 이동합니다.";
+    setTimeout(()=>location.reload(), 700);
+    return;
+  }
+  b.disabled = false;
+  m.className = "msg";
+  m.textContent = "아직 승인 전입니다. 승인되면 이 버튼으로 바로 입장할 수 있습니다.";
+  showWaiting(session.user, prof);
+};
 $("btnRename").onclick = async ()=>{
   const nm = prompt("표시할 이름을 입력하세요.", ME.name);
   if(!nm || !nm.trim()) return;
@@ -987,7 +1082,12 @@ async function boot(session){
     await sb.from("profiles").insert({ id:u.id, name:(u.user_metadata?.name || u.email.split("@")[0]) });
     ({ data: prof } = await sb.from("profiles").select("*").eq("id", u.id).maybeSingle());
   }
-  ME = { id:u.id, email:u.email, name:prof?.name || u.email.split("@")[0], role:prof?.role || "member" };
+  ME = { id:u.id, email:u.email, name:prof?.name || u.email.split("@")[0], role:prof?.role || "member",
+         status: prof?.status || "active" };
+
+  /* 승인 대기·차단 상태면 앱 대신 안내 화면 */
+  if(ME.status !== "active"){ booted = false; showWaiting(u, prof); return; }
+
   $("myName").textContent = ME.name;
   const badge = $("roleBadge");
   badge.classList.toggle("hide", ME.role==="member");
@@ -997,6 +1097,7 @@ async function boot(session){
 
   bindUI();
   await loadSettings();
+  await loadMembers();
   await loadYears();
   await loadYear(YEARS.includes(new Date().getFullYear()) ? new Date().getFullYear() : YEARS[YEARS.length-1]);
 }
@@ -1998,6 +2099,7 @@ function renderSettings(){
     : `현재 권한 <b>팀원</b> — 선택 항목은 보기만 가능합니다. 추가·수정이 필요하면 팀장 또는 마스터에게 요청해 주세요.`;
 
   renderTargetEditor();
+  renderMembers();
 
   $("setGrid").innerHTML = SETTING_DEFS.map(d=>{
     const items = SETTINGS[d.key] || [];
@@ -2241,6 +2343,107 @@ function errText(e){
   const m = e && e.message ? e.message : String(e);
   return /row-level security|permission/i.test(m)
     ? "설정 변경 권한이 없습니다. 팀장 또는 마스터 계정으로 진행해 주세요." : "실패: " + m;
+}
+
+/* =====================================================================
+   회원 관리 — 신규 가입 승인 / 권한 변경 / 사용 중지  (팀장·마스터)
+   ===================================================================== */
+let MEMBERS = [];
+
+async function loadMembers(){
+  if(!isAdmin()) { MEMBERS = []; return; }
+  const { data, error } = await sb.from("profiles").select("*").order("created_at");
+  if(error){ MEMBERS = []; return; }
+  MEMBERS = data || [];
+  const n = MEMBERS.filter(m=>m.status === "pending").length;
+  $("pendDot").classList.toggle("hide", n === 0);
+}
+
+async function setMember(id, patch, okMsg){
+  const { error } = await sb.from("profiles").update(patch).eq("id", id);
+  if(error){ alert("변경하지 못했습니다: " + error.message); return; }
+  await loadMembers();
+  renderMembers();
+  toast(okMsg);
+}
+
+function memRow(m, kind){
+  const me = m.id === ME.id;
+  const roleSel = `<select class="fld sm" data-role="${m.id}" style="width:auto;padding:3px 7px;font-size:11.5px"${me?" disabled":""}>
+      ${["member","lead","master"].map(r=>`<option value="${r}"${m.role===r?" selected":""}>${ROLE_LABEL[r]||r}</option>`).join("")}
+    </select>`;
+  const actions = kind === "pending"
+    ? `<button class="btn sm primary" data-approve="${m.id}">승인</button>
+       <button class="btn sm ghost" data-reject="${m.id}" style="color:var(--danger)">거절</button>`
+    : (me
+        ? `<span class="hint">본인</span>`
+        : `${roleSel} <button class="btn sm ghost" data-block="${m.id}" style="color:var(--danger)">사용 중지</button>`);
+  return `<tr>
+    <td><b>${esc(m.name||"-")}</b></td>
+    <td class="clip" title="${esc(m.email||"")}">${esc(m.email||"-")}</td>
+    <td><span class="st ${m.status}">${STATUS_LABEL[m.status]||m.status}</span></td>
+    <td class="dim">${m.created_at?stamp(m.created_at):"-"}</td>
+    <td class="act">${actions}</td>
+  </tr>`;
+}
+
+function memTable(rows, kind){
+  if(!rows.length) return `<div class="mem-empty">${kind==="pending"?"승인을 기다리는 신청이 없습니다.":"표시할 회원이 없습니다."}</div>`;
+  return `<table class="grid mem">
+    <thead><tr><th class="nos">이름</th><th class="nos">이메일</th><th class="nos">상태</th>
+      <th class="nos">가입일</th><th class="nos" style="text-align:right">${kind==="pending"?"승인":"권한 · 관리"}</th></tr></thead>
+    <tbody>${rows.map(m=>memRow(m,kind)).join("")}</tbody></table>`;
+}
+
+function renderMembers(){
+  const card = $("cardMembers");
+  if(!isAdmin()){ card.classList.add("hide"); return; }
+  card.classList.remove("hide");
+
+  const pending = MEMBERS.filter(m=>m.status === "pending");
+  const others  = MEMBERS.filter(m=>m.status !== "pending");
+
+  $("memPending").innerHTML =
+      `<div class="mem-h pend">승인 대기<span class="cnt">${comma(pending.length)}명</span></div>`
+    + memTable(pending, "pending");
+  $("memActive").innerHTML =
+      `<div class="mem-h">사용 중 · 중지<span class="cnt">${comma(others.length)}명</span></div>`
+    + memTable(others, "active");
+
+  const act = others.filter(m=>m.status==="active").length;
+  $("memInfo").textContent =
+    `사용 중 ${comma(act)}명 · 승인 대기 ${comma(pending.length)}명 · 중지 ${comma(others.length-act)}명`
+    + ` | 신규 가입자는 승인 전까지 데이터를 볼 수 없습니다.`;
+
+  card.querySelectorAll("[data-approve]").forEach(b=>b.onclick = ()=>{
+    const m = MEMBERS.find(x=>x.id===b.dataset.approve);
+    if(!confirm(`${m.name}(${m.email}) 님을 승인할까요?\n승인하면 바로 데이터를 볼 수 있습니다.`)) return;
+    setMember(m.id, { status:"active" }, `${m.name} 님을 승인했습니다.`);
+  });
+  card.querySelectorAll("[data-reject]").forEach(b=>b.onclick = ()=>{
+    const m = MEMBERS.find(x=>x.id===b.dataset.reject);
+    if(!confirm(`${m.name}(${m.email}) 님의 신청을 거절할까요?\n나중에 다시 승인할 수 있습니다.`)) return;
+    setMember(m.id, { status:"rejected" }, `${m.name} 님의 신청을 거절했습니다.`);
+  });
+  card.querySelectorAll("[data-block]").forEach(b=>b.onclick = ()=>{
+    const m = MEMBERS.find(x=>x.id===b.dataset.block);
+    if(m.status === "active"){
+      if(!confirm(`${m.name} 님의 사용을 중지할까요?\n로그인은 되지만 데이터는 볼 수 없게 됩니다.`)) return;
+      setMember(m.id, { status:"rejected" }, `${m.name} 님의 사용을 중지했습니다.`);
+    }else{
+      setMember(m.id, { status:"active" }, `${m.name} 님을 다시 승인했습니다.`);
+    }
+  });
+  card.querySelectorAll("[data-block]").forEach(b=>{
+    const m = MEMBERS.find(x=>x.id===b.dataset.block);
+    if(m && m.status !== "active"){ b.textContent = "다시 승인"; b.style.color = "var(--win)"; }
+  });
+  card.querySelectorAll("[data-role]").forEach(sel=>sel.onchange = ()=>{
+    const m = MEMBERS.find(x=>x.id===sel.dataset.role);
+    const r = sel.value;
+    if(!confirm(`${m.name} 님의 권한을 "${ROLE_LABEL[r]||r}"(으)로 바꿀까요?`)){ sel.value = m.role; return; }
+    setMember(m.id, { role:r }, `${m.name} 님의 권한을 ${ROLE_LABEL[r]||r}(으)로 변경했습니다.`);
+  });
 }
 </script>
 <script>
@@ -3121,6 +3324,7 @@ function bindUI(){
   };
 
   $("btnDownload").onclick = exportExcel;
+  $("btnReloadMembers").onclick = async ()=>{ await loadMembers(); renderMembers(); toast("회원 목록을 새로고침했습니다."); };
   $("btnUpload").onclick = ()=>{
     IMPORT_ROWS = null; $("upResult").classList.add("hide");
     $("upMsg").textContent = ""; $("btnDoImport").disabled = true; $("fileInput").value = "";
