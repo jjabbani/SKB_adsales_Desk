@@ -92,6 +92,7 @@ main{max-width:1680px;margin:0 auto;padding:16px 18px 60px}
 .kpi .t{font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:-.2px}
 .kpi .v{font-size:21px;font-weight:800;margin-top:3px;letter-spacing:-.6px}
 .kpi .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+.kpi .s b.won{font-weight:600;color:var(--muted)}
 .kpi.win .v{color:var(--win)}
 .kpi.prop .v{color:var(--prop)}
 
@@ -161,6 +162,26 @@ table.grid th.clip{max-width:150px}
 .set-item input.ed{flex:1;padding:4px 7px;border:1px solid var(--brand);border-radius:6px}
 .set-add{padding:9px 12px;border-top:1px solid var(--line2);display:flex;gap:6px}
 .set-add input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px}
+/* ---------- 변경 이력 배지 ---------- */
+.tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:10.5px;font-weight:800;white-space:nowrap}
+.tag.new{background:#e6f5ee;color:#0f7a52}
+.tag.edit{background:#fff3e0;color:#a8620a}
+.tag.old{background:#f1f4f9;color:var(--muted);font-weight:600}
+td .ago{font-size:10.5px;color:var(--muted);white-space:nowrap}
+
+/* ---------- Monthly 상세 리스트 ---------- */
+.mon-list-h{font-size:11.5px;font-weight:800;margin:14px 0 4px;display:flex;align-items:center;gap:7px}
+.mon-list-h .cnt{font-weight:600;color:var(--muted)}
+.mon-list-h.win{color:var(--win)}
+.mon-list-h.prop{color:var(--prop)}
+.mon-sub{font-size:11px;font-weight:700;color:var(--text);margin:10px 0 3px;display:flex;align-items:center;gap:6px}
+.mon-sub .cnt{font-weight:600;color:var(--muted);font-size:10.5px}
+table.mon-list{font-size:11.5px}
+table.mon-list th,table.mon-list td{padding:5px 8px}
+table.mon-list tfoot td{background:#f7f9fc;border-top:1px solid var(--line)}
+.mon-empty-line{font-size:11.5px;color:var(--muted);padding:7px 9px;background:#fafbfd;
+  border:1px dashed var(--line);border-radius:7px}
+
 /* ---------- Monthly 아코디언 ---------- */
 .mon-head,.mon-row{display:grid;grid-template-columns:minmax(150px,1.6fr) repeat(8,minmax(78px,1fr));
   gap:0;align-items:center;font-variant-numeric:tabular-nums}
@@ -416,6 +437,7 @@ table.grid tr.tot td.dim{background:#f7f9fc}
         <div class="spacer"></div>
         <label class="lb" style="margin:0 6px 0 0">기준 월</label>
         <select id="monMonth" class="fld" style="width:auto"></select>
+        <button id="monXlsx" class="btn sm" style="margin-left:8px">엑셀 내려받기</button>
       </div>
       <div class="kpis" id="monKpis" style="margin:14px 16px"></div>
       <div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding-top:0">
@@ -523,6 +545,14 @@ table.grid tr.tot td.dim{background:#f7f9fc}
           <div><label class="lb">상품</label><select id="fProduct" class="fld"></select></div>
           <div><label class="lb">업종</label><select id="fIndustry" class="fld"></select></div>
           <div><label class="lb">등록자</label><select id="fOwner" class="fld"></select></div>
+          <div><label class="lb">최근 변경</label><select id="fChanged" class="fld">
+            <option value="">전체</option>
+            <option value="new">신규 등록건만</option>
+            <option value="edit">수정된 건만</option>
+            <option value="1">오늘 (24시간)</option>
+            <option value="7">최근 7일</option>
+            <option value="30">최근 30일</option>
+          </select></div>
         </div>
       </div>
     </div>
@@ -765,6 +795,56 @@ function trunc(s, n){
   const v = String(s==null?"":s);
   return v.length > (n||10) ? v.slice(0, n||10) + "…" : v;
 }
+/** 억원 · 소수점 2자리 — 요약 박스의 대표 숫자 */
+function eok2(v){ return ((Number(v)||0)/100000000).toFixed(2) + "억"; }
+/** 백분율 · 소수점 2자리 */
+function pct2(a,b){ return (b ? (a/b*100) : 0).toFixed(2) + "%"; }
+/** 요약 박스 — 억원(크게) + 원단위(작게) */
+function kpiMoney(cls, title, won, sub){
+  return `<div class="kpi ${cls}"><div class="t">${title}</div>`
+       + `<div class="v">${eok2(won)}</div>`
+       + `<div class="s"><b class="won">${comma(won)}원</b>${sub?" · "+sub:""}</div></div>`;
+}
+/* ---------- 변경 이력 ---------- */
+/** ISO 타임스탬프 → 지금으로부터 며칠 전 (소수 포함) */
+function daysAgo(ts){
+  if(!ts) return Infinity;
+  const t = new Date(ts).getTime();
+  if(!isFinite(t)) return Infinity;
+  return (Date.now() - t) / 86400000;
+}
+/** 사람이 읽는 상대 시각 */
+function agoText(ts){
+  const d = daysAgo(ts);
+  if(!isFinite(d)) return "-";
+  if(d < 1/24) return "방금";
+  if(d < 1)    return Math.floor(d*24) + "시간 전";
+  if(d < 30)   return Math.floor(d) + "일 전";
+  if(d < 365)  return Math.floor(d/30) + "개월 전";
+  return Math.floor(d/365) + "년 전";
+}
+/** YYYY-MM-DD HH:MM */
+function stamp(ts){
+  if(!ts) return "-";
+  const d = new Date(ts);
+  if(isNaN(d)) return "-";
+  const p = n => String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+/** 최근 변경 배지 기준 (일) */
+const CHANGE_WINDOW = 7;
+/** 행의 변경 상태 → {kind:"new"|"edit"|"old", label, ago} */
+function changeState(r){
+  const cd = daysAgo(r.created_at), ud = daysAgo(r.updated_at || r.created_at);
+  const edited = r.updated_at && r.created_at &&
+                 (new Date(r.updated_at) - new Date(r.created_at)) > 5000;   // 5초 이상 차이면 수정된 건
+  const recent = Math.min(cd, ud);
+  if(cd <= CHANGE_WINDOW && !edited) return {kind:"new",  label:"신규",   ago:agoText(r.created_at), d:recent};
+  if(ud <= CHANGE_WINDOW &&  edited) return {kind:"edit", label:"수정됨", ago:agoText(r.updated_at), d:recent};
+  if(cd <= CHANGE_WINDOW &&  edited) return {kind:"edit", label:"수정됨", ago:agoText(r.updated_at), d:recent};
+  return {kind:"old", label:edited?"수정":"등록", ago:agoText(r.updated_at || r.created_at), d:recent};
+}
+
 /** 억/만 단위 축약 */
 function shortWon(n){
   const v = Number(n)||0;
@@ -1024,7 +1104,7 @@ function subscribeRealtime(){
 }
 
 /* ===================== 필터 ===================== */
-const FILTER_IDS = ["fQ","fStage","fRevMonth","fPropMonth","fChannel","fRep","fAgency","fProduct","fIndustry","fOwner"];
+const FILTER_IDS = ["fQ","fStage","fRevMonth","fPropMonth","fChannel","fRep","fAgency","fProduct","fIndustry","fOwner","fChanged"];
 
 function refreshOptionLists(){
   fillSelect($("fStage"),    ["제안","수주"],       "전체");
@@ -1064,8 +1144,17 @@ function filtered(){
   const st = $("fStage").value, ch = $("fChannel").value, rp = $("fRep").value,
         ag = $("fAgency").value, pr = $("fProduct").value, ind = $("fIndustry").value,
         ow = $("fOwner").value,
-        rm = $("fRevMonth").value, pm = $("fPropMonth").value;
+        rm = $("fRevMonth").value, pm = $("fPropMonth").value,
+        cg = $("fChanged").value;
   let out = ROWS.filter(r=>{
+    if(cg){
+      const c = changeState(r);
+      if(cg === "new"  && c.kind !== "new")  return false;
+      if(cg === "edit" && c.kind !== "edit") return false;
+      if(cg === "1"  && c.d > 1)  return false;
+      if(cg === "7"  && c.d > 7)  return false;
+      if(cg === "30" && c.d > 30) return false;
+    }
     if(st && r.stage!==st) return false;
     if(ch && r.channel!==ch) return false;
     if(rp && r.rep!==rp) return false;
@@ -1077,7 +1166,7 @@ function filtered(){
     if(pm && monthLabel(r.propose_month)!==pm) return false;
     if(q){
       const hay = [r.advertiser,r.brand,r.agency,r.rep,r.channel,r.product,r.industry,
-                   r.note,r.basic_budget,r.added_value,r.promotion,r.created_name,
+                   r.note,r.basic_budget,r.added_value,r.promotion,r.created_name,r.updated_name,
                    monthLabel(r.revenue_month),monthLabel(r.propose_month),String(r.amount)]
                   .join(" ").toLowerCase();
       if(!hay.includes(q)) return false;
@@ -1088,6 +1177,10 @@ function filtered(){
   out.sort((a,b)=>{
     let va=a[k], vb=b[k];
     if(k==="amount"){ va=Number(va)||0; vb=Number(vb)||0; return (va-vb)*dir; }
+    if(k==="_chg" || k==="created_at" || k==="updated_at"){
+      const t = (r,kk) => new Date((kk==="created_at"?r.created_at:(r.updated_at||r.created_at))||0).getTime()||0;
+      return (t(a,k) - t(b,k)) * dir;
+    }
     va = va==null?"":String(va); vb = vb==null?"":String(vb);
     return va.localeCompare(vb,"ko")*dir;
   });
@@ -1096,6 +1189,10 @@ function filtered(){
 
 /* ===================== 목록 렌더 ===================== */
 const LIST_COLS = [
+  {k:"_chg",          t:"변경", raw:true, f:r=>{
+     const c = changeState(r);
+     return `<span class="tag ${c.kind}">${c.label}</span> <span class="ago">${c.ago}</span>`;
+   }},
   {k:"propose_date",  t:"제안일",       f:r=>toExcelDate(r.propose_date)},
   {k:"propose_month", t:"제안월",       f:r=>monthLabel(r.propose_month)},
   {k:"exec_month",    t:"집행(예정)월", f:r=>monthLabel(r.exec_month)},
@@ -1113,7 +1210,10 @@ const LIST_COLS = [
   {k:"note",          t:"비고",       clip:true, extra:true},
   {k:"added_value",   t:"Added Value 활용", extra:true},
   {k:"promotion",     t:"프로모션 적용여부", extra:true},
-  {k:"created_name",  t:"등록자"}
+  {k:"created_name",  t:"등록자"},
+  {k:"created_at",    t:"등록일",  f:r=>stamp(r.created_at), extra:true},
+  {k:"updated_at",    t:"수정일",  f:r=>stamp(r.updated_at), extra:true},
+  {k:"updated_name",  t:"수정자",  f:r=>esc(r.updated_name||r.created_name||"-"), raw:true, extra:true}
 ];
 
 /** 기본은 접어두고 버튼으로 펼치는 열 (Basic 총예산 · 비고 · Added Value · 프로모션) */
@@ -1124,7 +1224,7 @@ function renderList(){
   const nExtra = LIST_COLS.filter(c=>c.extra).length;
   $("btnExtraCols").textContent = SHOW_EXTRA
     ? `◂ 추가 ${nExtra}개 열 접기`
-    : `▸ 추가 ${nExtra}개 열 보기 (Basic 총예산·비고·AV·프로모션)`;
+    : `▸ 추가 ${nExtra}개 열 보기 (Basic 총예산·비고·AV·프로모션·등록일·수정일·수정자)`;
   const COLS_V = visibleCols();
   const all = filtered();
   const total = all.length;
@@ -1424,13 +1524,13 @@ function renderTargets(){
     `<div class="kpi ${cls}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s2}</div>${extra}</div>`;
 
   $("goalKpis").innerHTML =
-      tile("prop", `${YEAR}년 목표매출`, comma(yG)+"원", shortWon(yG))
-    + (useTrend ? tile("", `${YEAR}년 Trend`, comma(yT)+"원", shortWon(yT)) : "")
-    + tile("win", `달성 매출 (1~${curM}월)`, comma(cA)+"원", `연간 ${shortWon(yA)} 누적`)
-    + tile("now", `누적 달성률 (1~${curM}월)`, pct(cA,cG).toFixed(1)+"%",
-           `목표 ${shortWon(cG)} 대비${useTrend?` · Trend ${pct(cA,cT).toFixed(1)}%`:""}`, bar(pct(cA,cG)))
-    + tile("now", `${curM}월 달성률`, pct(mA,mG).toFixed(1)+"%",
-           `${shortWon(mA)} / ${shortWon(mG)}${useTrend?` · Trend ${pct(mA,mT).toFixed(1)}%`:""}`, bar(pct(mA,mG)));
+      kpiMoney("prop", `${YEAR}년 목표매출`, yG)
+    + (useTrend ? kpiMoney("", `${YEAR}년 Trend`, yT) : "")
+    + kpiMoney("win", `달성 매출 (1~${curM}월)`, cA, `연간 ${eok2(yA)}`)
+    + tile("now", `누적 달성률 (1~${curM}월)`, pct(cA,cG).toFixed(2)+"%",
+           `목표 ${eok2(cG)} 대비${useTrend?` · Trend ${pct(cA,cT).toFixed(2)}%`:""}`, bar(pct(cA,cG)))
+    + tile("now", `${curM}월 달성률`, pct(mA,mG).toFixed(2)+"%",
+           `${eok2(mA)} / ${eok2(mG)}${useTrend?` · Trend ${pct(mA,mT).toFixed(2)}%`:""}`, bar(pct(mA,mG)));
 
   const rateCell = (a,g) => {
     if(!g) return '<td class="num">-</td>';
@@ -1567,9 +1667,9 @@ function renderCurrent(){
   const tile = (cls,t,v,s2)=>`<div class="kpi ${cls}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`;
   $("kpis").innerHTML =
       tile("prop","제안 건수", comma(prop.length)+"건", `${mNum}월 제안월 기준`)
-    + tile("prop","제안 금액", comma(pa)+"원", shortWon(pa))
+    + kpiMoney("prop","제안 금액", pa, `${mNum}월 제안월 기준`)
     + tile("win","수주 건수",  comma(win.length)+"건", `${mNum}월 매출월 기준`)
-    + tile("win","수주 금액",  comma(wa)+"원", `${shortWon(wa)} · 수주율(금액) ${rate.toFixed(1)}%`);
+    + kpiMoney("win","수주 금액",  wa, `수주율(금액) ${rate.toFixed(2)}%`);
 
   renderTargets();
 
@@ -2258,12 +2358,16 @@ async function renderCompare(){
   const diff = totB - totA, rate = totA ? (diff/totA*100) : 0;
   const unit = isAmt ? "원" : "건";
   const tile = (cls,t,v,s2)=>`<div class="kpi ${cls}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`;
-  $("cmpKpis").innerHTML =
-      tile("prop", a+"년 수주", comma(totA)+unit, isAmt?shortWon(totA):"건수 기준")
-    + tile("win",  b+"년 수주", comma(totB)+unit, isAmt?shortWon(totB):"건수 기준")
-    + tile("", "증감", (diff>=0?"+":"−")+comma(Math.abs(diff))+unit, `${a}년 대비`)
-    + tile("", "증감률", (diff>=0?"+":"−")+Math.abs(rate).toFixed(1)+"%",
-           totA ? `${isAmt?shortWon(totA):comma(totA)+"건"} → ${isAmt?shortWon(totB):comma(totB)+"건"}` : "기준 연도 실적 없음");
+  const sign = diff>=0 ? "+" : "−";
+  $("cmpKpis").innerHTML = (isAmt
+    ? kpiMoney("prop", a+"년 수주", totA) + kpiMoney("win", b+"년 수주", totB)
+      + `<div class="kpi"><div class="t">증감</div><div class="v">${sign}${eok2(Math.abs(diff))}</div>`
+      + `<div class="s"><b class="won">${sign}${comma(Math.abs(diff))}원</b> · ${a}년 대비</div></div>`
+    : tile("prop", a+"년 수주", comma(totA)+unit, "건수 기준")
+      + tile("win",  b+"년 수주", comma(totB)+unit, "건수 기준")
+      + tile("", "증감", sign+comma(Math.abs(diff))+unit, `${a}년 대비`))
+    + tile("", "증감률", sign+Math.abs(rate).toFixed(2)+"%",
+           totA ? `${isAmt?eok2(totA):comma(totA)+"건"} → ${isAmt?eok2(totB):comma(totB)+"건"}` : "기준 연도 실적 없음");
 
   /* 표 */
   const arrow = d => d > 0 ? `<span style="color:var(--win)">▲</span>` : d < 0 ? `<span style="color:var(--danger)">▼</span>` : "";
@@ -2371,8 +2475,10 @@ function drawCompareChart(keys, ma, mb, isAmt, ya, yb, labelFn){
 /* =====================================================================
    Monthly — 미디어렙사별 당월/누적 현황과 전년 대비
    목표: 설정(app_settings.rep_targets) · 실적: 매출월 기준 수주
-   금액은 "미디어렙사 Monthly" 양식과 같이 억원으로 표기합니다.
+   금액은 "미디어렙사 Monthly" 양식과 같이 억원(소수점 2자리)으로 표기합니다.
    ===================================================================== */
+let MON_LAST = null;                                  // 엑셀 내려받기용 스냅샷
+
 function monSyncControls(){
   const sel = $("monMonth");
   sel.innerHTML = Array.from({length:12},(_,i)=>{
@@ -2398,6 +2504,17 @@ function repActuals(rows){
     (map[nm] = map[nm] || Array(12).fill(0))[m-1] += Number(r.amount)||0;
   });
   return map;
+}
+
+/** 렙사·당월 상세 건 — 확정(수주) / 이월 제안 / 신규 제안 */
+function monRowsOf(nm, ym){
+  const of = r => (r.rep||"").trim() === nm;
+  const win  = ROWS.filter(r=>of(r) && r.stage==="수주" && r.revenue_month===ym);
+  const carry= ROWS.filter(r=>of(r) && r.stage==="제안" && r.revenue_month===ym
+                              && r.propose_month && r.propose_month < ym);
+  const fresh= ROWS.filter(r=>of(r) && r.stage==="제안" && r.propose_month===ym);
+  const byAmt = (a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0);
+  return { win: win.sort(byAmt), carry: carry.sort(byAmt), fresh: fresh.sort(byAmt) };
 }
 
 async function renderMonthly(){
@@ -2445,20 +2562,22 @@ async function renderMonthly(){
     cg:t.cg+r.cg, ca:t.ca+r.ca, cp:t.cp+r.cp
   }), {mg:0,ma:0,mp:0,prev:0,cg:0,ca:0,cp:0});
 
+  MON_LAST = { list, T, M, ym: MON.month };
+
   const tile = (cls,t,v,s2,extra="") =>
     `<div class="kpi ${cls}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s2}</div>${extra}</div>`;
   const meter = r => `<div class="rate-bar"><i class="${r<100?"under":""}" style="width:${Math.min(100,Math.max(0,r)).toFixed(1)}%"></i></div>`;
-  const sign = v => (v>=0?"+":"−")+eok(Math.abs(v));
+  const sign = v => (v>=0?"+":"−")+eok2(Math.abs(v));
 
   $("monKpis").innerHTML =
-      tile("prop", `${M}월 목표 합계`, eok(T.mg), comma(T.mg)+"원")
-    + tile("win",  `${M}월 실적 합계`, eok(T.ma), comma(T.ma)+"원")
-    + tile("now",  `${M}월 달성율`, rate(T.ma,T.mg).toFixed(1)+"%",
-           `전월 ${eok(T.prev)} · 전월비 ${sign(T.ma-T.prev)}`, meter(rate(T.ma,T.mg)))
-    + tile("now",  `1~${M}월 누적 달성율`, rate(T.ca,T.cg).toFixed(1)+"%",
-           `${eok(T.ca)} / ${eok(T.cg)}`, meter(rate(T.ca,T.cg)))
-    + tile("", `전년 동기 대비`, (T.ca-T.cp>=0?"+":"−")+Math.abs(rate(T.ca-T.cp,T.cp)).toFixed(1)+"%",
-           `${YEAR-1}년 ${eok(T.cp)} → ${eok(T.ca)}`);
+      kpiMoney("prop", `${M}월 목표 합계`, T.mg)
+    + kpiMoney("win",  `${M}월 실적 합계`, T.ma)
+    + tile("now",  `${M}월 달성율`, pct2(T.ma,T.mg),
+           `전월 ${eok2(T.prev)} · 전월비 ${sign(T.ma-T.prev)}`, meter(rate(T.ma,T.mg)))
+    + tile("now",  `1~${M}월 누적 달성율`, pct2(T.ca,T.cg),
+           `${eok2(T.ca)} / ${eok2(T.cg)}`, meter(rate(T.ca,T.cg)))
+    + tile("", `전년 동기 대비`, (T.ca-T.cp>=0?"+":"−")+Math.abs(rate(T.ca-T.cp,T.cp)).toFixed(2)+"%",
+           `${YEAR-1}년 ${eok2(T.cp)} → ${eok2(T.ca)}`);
 
   if(!list.length){
     $("monList").innerHTML = ""; $("monEmpty").classList.remove("hide");
@@ -2476,14 +2595,14 @@ async function renderMonthly(){
     return `<div class="mon-item ${open?"open":""}" data-nm="${esc(r.nm)}">
       <div class="mon-row">
         <span class="c1"><span class="arw">▶</span>${esc(r.nm)}</span>
-        <span class="c2 dimv">${eok(r.mg)}</span>
-        <span class="c2 strong">${eok(r.ma)}</span>
-        <span class="c2 ${cls(mr)}">${r.mg?mr.toFixed(1)+"%":"-"}</span>
+        <span class="c2 dimv">${eok2(r.mg)}</span>
+        <span class="c2 strong">${eok2(r.ma)}</span>
+        <span class="c2 ${cls(mr)}">${r.mg?mr.toFixed(2)+"%":"-"}</span>
         <span class="c2 ${dcls(pd)}">${pd?sign(pd):"-"}</span>
         <span class="c2 ${dcls(yd)}">${r.mp||r.ma?sign(yd):"-"}</span>
-        <span class="c2 dimv">${eok(r.cg)}</span>
-        <span class="c2 strong">${eok(r.ca)}</span>
-        <span class="c2 ${cls(cr)}">${r.cg?cr.toFixed(1)+"%":"-"}</span>
+        <span class="c2 dimv">${eok2(r.cg)}</span>
+        <span class="c2 strong">${eok2(r.ca)}</span>
+        <span class="c2 ${cls(cr)}">${r.cg?cr.toFixed(2)+"%":"-"}</span>
       </div>
       ${open ? monDetail(r, M) : ""}
     </div>`;
@@ -2499,16 +2618,43 @@ async function renderMonthly(){
 
   const openN = Object.values(MON.open).filter(Boolean).length;
   $("monInfo").textContent =
-    `미디어렙사 ${comma(list.length)}개 · ${M}월 목표 ${comma(T.mg)}원 / 실적 ${comma(T.ma)}원 (${rate(T.ma,T.mg).toFixed(1)}%)`
-    + ` · 1~${M}월 누적 ${rate(T.ca,T.cg).toFixed(1)}%`
+    `미디어렙사 ${comma(list.length)}개 · ${M}월 목표 ${eok2(T.mg)} / 실적 ${eok2(T.ma)} (${pct2(T.ma,T.mg)})`
+    + ` · 1~${M}월 누적 ${pct2(T.ca,T.cg)}`
     + (openN?` · ${openN}개 펼침`:"")
     + ` | 렙사 목표 합계는 미디어렙 채널 기준이라 전사 목표와 다릅니다.`;
 }
 
-/** 펼쳤을 때 — "미디어렙사 Monthly" 양식과 같은 지표 + 12개월 표 */
+/** 상세 건 리스트 (확정/제안 공통) */
+function monListTable(rows, kind){
+  if(!rows.length) return `<div class="mon-empty-line">해당 건이 없습니다.</div>`;
+  const tot = rows.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  const body = rows.map(r=>`<tr>
+      <td class="clip" title="${esc(r.advertiser||"")}">${esc(trunc(r.advertiser||"-",12))}</td>
+      <td class="clip" title="${esc(r.brand||"")}">${esc(trunc(r.brand||"-",12))}</td>
+      <td>${esc(r.channel||"-")}</td>
+      <td>${esc(r.product||"-")}</td>
+      <td class="clip" title="${esc(r.agency||"")}">${esc(trunc(r.agency||"-",12))}</td>
+      <td class="num dimv">${r.propose_month?Number(r.propose_month.slice(5))+"월":"-"}</td>
+      <td class="num">${r.revenue_month?Number(r.revenue_month.slice(5))+"월":"-"}</td>
+      <td class="num" style="font-weight:700">${comma(r.amount)}</td>
+    </tr>`).join("");
+  return `<table class="grid mon-list">
+    <thead><tr>
+      <th class="nos">광고주</th><th class="nos">브랜드</th><th class="nos">채널</th>
+      <th class="nos">상품</th><th class="nos">대행사</th>
+      <th class="num nos">제안월</th><th class="num nos">매출월</th><th class="num nos">광고비</th>
+    </tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot><tr>
+      <td colspan="7" class="dim">${kind} 합계 · ${comma(rows.length)}건</td>
+      <td class="num" style="font-weight:800">${comma(tot)}</td>
+    </tr></tfoot></table>`;
+}
+
+/** 펼쳤을 때 — "미디어렙사 Monthly" 양식과 같은 지표 + 상세 내역 + 12개월 표 */
 function monDetail(r, M){
   const rate = (a,b) => b ? (a/b*100) : 0;
-  const sign = v => (v>=0?"+":"−")+eok(Math.abs(v));
+  const sign = v => (v>=0?"+":"−")+eok2(Math.abs(v));
   const pct  = (a,b) => b ? ((a/b*100).toFixed(2)+"%") : "-";
   const cell = (t,v,s2,color="") =>
     `<div class="mon-cell"><div class="t">${t}</div><div class="v" style="${color}">${v}</div><div class="s">${s2||"&nbsp;"}</div></div>`;
@@ -2517,56 +2663,119 @@ function monDetail(r, M){
 
   const pd = r.ma - r.prev, yd = r.ma - r.mp, cyd = r.ca - r.cp;
   const cy = currentYM();
+  const D = monRowsOf(r.nm, `${YEAR}-${String(M).padStart(2,"0")}`);
+  const amtOf = a => a.reduce((s,x)=>s+(Number(x.amount)||0),0);
 
   const mini = `<table class="grid" style="margin-top:6px">
-    <thead><tr><th class="nos dim">구분</th>
+    <thead><tr><th class="nos dim">구분 (억원)</th>
       ${Array.from({length:12},(_,i)=>{
         const k = `${YEAR}-${String(i+1).padStart(2,"0")}`;
         return `<th class="num nos${k===cy?" curcol":""}">${i+1}월</th>`;}).join("")}
       <th class="num nos">합계</th></tr></thead>
     <tbody>
       <tr><td class="dim" style="color:var(--prop)">목표</td>
-        ${r.g.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}">${v?eok(v):"-"}</td>`).join("")}
-        <td class="num" style="font-weight:800;background:#f7f9fc">${eok(r.yg)}</td></tr>
+        ${r.g.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}">${v?(v/1e8).toFixed(2):"-"}</td>`).join("")}
+        <td class="num" style="font-weight:800;background:#f7f9fc">${(r.yg/1e8).toFixed(2)}</td></tr>
       <tr><td class="dim" style="color:var(--win)">실적</td>
-        ${r.a.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}" style="font-weight:700">${v?eok(v):"-"}</td>`).join("")}
-        <td class="num" style="font-weight:800;background:#f7f9fc">${eok(r.ya)}</td></tr>
+        ${r.a.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}" style="font-weight:700">${v?(v/1e8).toFixed(2):"-"}</td>`).join("")}
+        <td class="num" style="font-weight:800;background:#f7f9fc">${(r.ya/1e8).toFixed(2)}</td></tr>
       <tr><td class="dim">달성율</td>
         ${r.g.map((v,i)=>{
           const k = `${YEAR}-${String(i+1).padStart(2,"0")}`;
           const rr = rate(r.a[i], v);
           return `<td class="num${k===cy?" curcol":""}" style="${v?rcol(rr):""}">${v?rr.toFixed(0)+"%":"-"}</td>`;
         }).join("")}
-        <td class="num" style="font-weight:800;background:#f7f9fc">${r.yg?rate(r.ya,r.yg).toFixed(1)+"%":"-"}</td></tr>
+        <td class="num" style="font-weight:800;background:#f7f9fc">${r.yg?rate(r.ya,r.yg).toFixed(2)+"%":"-"}</td></tr>
       <tr><td class="dim" style="color:var(--muted)">${YEAR-1}년 실적</td>
-        ${r.p.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}" style="color:var(--muted)">${v?eok(v):"-"}</td>`).join("")}
-        <td class="num" style="font-weight:800;background:#f7f9fc">${eok(r.yp)}</td></tr>
+        ${r.p.map((v,i)=>`<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""}" style="color:var(--muted)">${v?(v/1e8).toFixed(2):"-"}</td>`).join("")}
+        <td class="num" style="font-weight:800;background:#f7f9fc">${(r.yp/1e8).toFixed(2)}</td></tr>
     </tbody></table>`;
 
   return `<div class="mon-body">
     <div class="mon-sec">${M}월</div>
     <div class="mon-grid">
-      ${cell("목표", eok(r.mg), comma(r.mg)+"원")}
-      ${cell("실적", eok(r.ma), comma(r.ma)+"원")}
-      ${cell("달성율", r.mg?pct(r.ma,r.mg):"-", r.mg?`목표 ${eok(r.mg)} 대비`:"목표 미등록", r.mg?rcol(rate(r.ma,r.mg)):"")}
-      ${cell("전월", eok(r.prev), M>1?`${M-1}월 실적`:"해당 없음")}
+      ${cell("목표", eok2(r.mg), comma(r.mg)+"원")}
+      ${cell("실적", eok2(r.ma), comma(r.ma)+"원")}
+      ${cell("달성율", r.mg?pct(r.ma,r.mg):"-", r.mg?`목표 ${eok2(r.mg)} 대비`:"목표 미등록", r.mg?rcol(rate(r.ma,r.mg)):"")}
+      ${cell("전월 실적", eok2(r.prev), M>1?comma(r.prev)+"원":"해당 없음")}
       ${cell("전월비", pd?sign(pd):"-", r.prev?pct(pd,r.prev):"", col(pd))}
-      ${cell(`${YEAR-1}년 ${M}월`, eok(r.mp), comma(r.mp)+"원")}
-      ${cell("증감 (YoY)", (r.mp||r.ma)?sign(yd):"-", "", col(yd))}
-      ${cell("증감율 (YoY)", r.mp?pct(yd,r.mp):"-", r.mp?"":"전년 실적 없음", col(yd))}
+      ${cell(`${YEAR-1}년 ${M}월`, eok2(r.mp), comma(r.mp)+"원")}
+      ${cell("증감 (YoY)", (r.mp||r.ma)?sign(yd):"-", `${YEAR-1}년 ${M}월 기준`, col(yd))}
+      ${cell("증감율 (YoY)", r.mp?pct(yd,r.mp):"-", r.mp?`${YEAR-1}년 ${M}월 기준`:"전년 실적 없음", col(yd))}
     </div>
     <div class="mon-sec">연간 누적 (1~${M}월)</div>
     <div class="mon-grid">
-      ${cell("목표", eok(r.cg), comma(r.cg)+"원")}
-      ${cell("실적", eok(r.ca), comma(r.ca)+"원")}
-      ${cell("달성율", r.cg?pct(r.ca,r.cg):"-", r.cg?`목표 ${eok(r.cg)} 대비`:"목표 미등록", r.cg?rcol(rate(r.ca,r.cg)):"")}
-      ${cell(`${YEAR-1}년 동기`, eok(r.cp), comma(r.cp)+"원")}
-      ${cell("증감 (YoY)", (r.cp||r.ca)?sign(cyd):"-", "", col(cyd))}
-      ${cell("증감율 (YoY)", r.cp?pct(cyd,r.cp):"-", r.cp?"":"전년 실적 없음", col(cyd))}
+      ${cell("목표", eok2(r.cg), comma(r.cg)+"원")}
+      ${cell("실적", eok2(r.ca), comma(r.ca)+"원")}
+      ${cell("달성율", r.cg?pct(r.ca,r.cg):"-", r.cg?`목표 ${eok2(r.cg)} 대비`:"목표 미등록", r.cg?rcol(rate(r.ca,r.cg)):"")}
+      ${cell(`${YEAR-1}년 동기`, eok2(r.cp), comma(r.cp)+"원")}
+      ${cell("증감 (YoY)", (r.cp||r.ca)?sign(cyd):"-", `${YEAR-1}년 1~${M}월 기준`, col(cyd))}
+      ${cell("증감율 (YoY)", r.cp?pct(cyd,r.cp):"-", r.cp?`${YEAR-1}년 1~${M}월 기준`:"전년 실적 없음", col(cyd))}
     </div>
+
+    <div class="mon-list-h win">[확정내역] ${M}월 수주<span class="cnt">${comma(D.win.length)}건 · ${comma(amtOf(D.win))}원</span></div>
+    ${monListTable(D.win, "확정")}
+
+    <div class="mon-list-h prop">[제안내역] ${M}월<span class="cnt">${comma(D.carry.length + D.fresh.length)}건 · ${comma(amtOf(D.carry)+amtOf(D.fresh))}원</span></div>
+    <div class="mon-sub">① 이전 제안 중 ${M}월 집행예정 <span class="cnt">${comma(D.carry.length)}건 · ${comma(amtOf(D.carry))}원</span></div>
+    ${monListTable(D.carry, "집행예정")}
+    <div class="mon-sub">② ${M}월 신규 제안 <span class="cnt">${comma(D.fresh.length)}건 · ${comma(amtOf(D.fresh))}원</span></div>
+    ${monListTable(D.fresh, "신규 제안")}
+
     <div class="mon-sec">${YEAR}년 월별</div>
     <div style="overflow-x:auto">${mini}</div>
   </div>`;
+}
+
+/** Monthly 엑셀 내려받기 — 선택한 달 기준 (요약 + 상세내역) */
+function exportMonthlyExcel(){
+  if(!MON_LAST){ toast("Monthly 데이터를 먼저 불러와 주세요."); return; }
+  const { list, T, M, ym } = MON_LAST;
+  const rate = (a,b) => b ? Number((a/b*100).toFixed(2)) : "";
+  const eokN = v => Number(((Number(v)||0)/1e8).toFixed(2));
+
+  /* 시트 1 — 렙사별 요약 */
+  const head = ["미디어렙사",
+    `${M}월 목표`, `${M}월 실적`, `${M}월 달성율(%)`,
+    `${M}월 목표(억)`, `${M}월 실적(억)`,
+    "전월 실적", "전월비",
+    `${YEAR-1}년 ${M}월`, "증감(YoY)", "증감율(YoY %)",
+    `1~${M}월 누적목표`, `1~${M}월 누적실적`, "누적 달성율(%)",
+    `${YEAR-1}년 1~${M}월`, "누적 증감(YoY)", "누적 증감율(YoY %)"];
+  const row = r => [r.nm,
+    r.mg, r.ma, rate(r.ma, r.mg), eokN(r.mg), eokN(r.ma),
+    r.prev, r.ma - r.prev,
+    r.mp, r.ma - r.mp, rate(r.ma - r.mp, r.mp),
+    r.cg, r.ca, rate(r.ca, r.cg),
+    r.cp, r.ca - r.cp, rate(r.ca - r.cp, r.cp)];
+  const aoa = [head, ...list.map(row),
+    ["합계", T.mg, T.ma, rate(T.ma,T.mg), eokN(T.mg), eokN(T.ma),
+     T.prev, T.ma - T.prev, T.mp, T.ma - T.mp, rate(T.ma - T.mp, T.mp),
+     T.cg, T.ca, rate(T.ca,T.cg), T.cp, T.ca - T.cp, rate(T.ca - T.cp, T.cp)]];
+
+  const ws1 = XLSX.utils.aoa_to_sheet(aoa);
+  ws1["!cols"] = head.map((h,i)=>({ wch: i===0 ? 18 : 15 }));
+
+  /* 시트 2 — 상세내역 (확정 · 집행예정 · 신규 제안) */
+  const d2 = [["구분","미디어렙사","광고주","브랜드","채널","상품","대행사","업종","제안월","매출월","광고비"]];
+  list.forEach(r=>{
+    const D = monRowsOf(r.nm, ym);
+    const push = (rows, label) => rows.forEach(x=>d2.push([
+      label, r.nm, x.advertiser||"", x.brand||"", x.channel||"", x.product||"",
+      x.agency||"", x.industry||"", x.propose_month||"", x.revenue_month||"", Number(x.amount)||0
+    ]));
+    push(D.win,   "확정(수주)");
+    push(D.carry, "제안-집행예정");
+    push(D.fresh, "제안-신규");
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(d2);
+  ws2["!cols"] = [{wch:14},{wch:18},{wch:20},{wch:18},{wch:12},{wch:14},{wch:18},{wch:12},{wch:10},{wch:10},{wch:14}];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, `${M}월 요약`);
+  XLSX.utils.book_append_sheet(wb, ws2, `${M}월 상세내역`);
+  XLSX.writeFile(wb, `미디어렙사 Monthly_${YEAR}년 ${String(M).padStart(2,"0")}월.xlsx`);
+  toast(`${YEAR}년 ${M}월 Monthly 엑셀을 내려받았습니다.`);
 }
 </script>
 <script>
@@ -2805,6 +3014,11 @@ function bindUI(){
   let t = null;
   $("fQ").addEventListener("input", ()=>{ clearTimeout(t); t = setTimeout(()=>{ PAGE=1; renderList(); }, 200); });
   FILTER_IDS.filter(id=>id!=="fQ").forEach(id=>$(id).addEventListener("change", ()=>{ PAGE=1; renderList(); }));
+  /* 최근 변경 필터를 켜면 최근 변경순으로 자동 정렬 */
+  $("fChanged").addEventListener("change", ()=>{
+    if($("fChanged").value) SORT = { k:"_chg", dir:"desc" };
+    PAGE=1; renderList();
+  });
   $("btnResetF").onclick = ()=>{ FILTER_IDS.forEach(id=>$(id).value=""); PAGE=1; renderList(); };
 
   $("btnPrev").onclick = ()=>{ if(PAGE>1){ PAGE--; renderList(); } };
@@ -2813,6 +3027,7 @@ function bindUI(){
 
   /* Monthly */
   $("monMonth").onchange = ()=>{ MON.month = $("monMonth").value; renderMonthly(); };
+  $("monXlsx").onclick   = exportMonthlyExcel;
   $("monSort").onchange  = ()=>{ MON.sort  = $("monSort").value;  renderMonthly(); };
   $("monHideEmpty").onchange = ()=>{ MON.hideEmpty = $("monHideEmpty").checked; renderMonthly(); };
   let mt = null;
