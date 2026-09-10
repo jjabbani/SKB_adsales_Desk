@@ -181,6 +181,9 @@ table.mem td.act{white-space:nowrap;text-align:right}
 table.mem .btn.sm{padding:3px 9px;font-size:11.5px}
 .mem-empty{font-size:12.5px;color:var(--muted);padding:9px 11px;background:#fafbfd;
   border:1px dashed var(--line);border-radius:8px}
+.mem-setup{font-size:12.5px;color:var(--muted);line-height:1.75;padding:13px 16px;
+  background:#fffaf3;border:1px solid #f2dfc4;border-left:3px solid var(--prop);border-radius:9px}
+.mem-setup b{color:var(--text)}
 .st{display:inline-block;padding:1px 8px;border-radius:5px;font-size:10.5px;font-weight:800}
 .st.active{background:#e6f5ee;color:#0f7a52}
 .st.pending{background:#fff3e0;color:#a8620a}
@@ -2350,12 +2353,16 @@ function errText(e){
    ===================================================================== */
 let MEMBERS = [];
 
+/** approval.sql 을 아직 실행하지 않으면 profiles 에 status 칸이 없습니다 */
+let MEMBERS_READY = true;
+
 async function loadMembers(){
   if(!isAdmin()) { MEMBERS = []; return; }
   const { data, error } = await sb.from("profiles").select("*").order("created_at");
   if(error){ MEMBERS = []; return; }
   MEMBERS = data || [];
-  const n = MEMBERS.filter(m=>m.status === "pending").length;
+  MEMBERS_READY = MEMBERS.every(m => typeof m.status === "string" && m.status);
+  const n = MEMBERS_READY ? MEMBERS.filter(m=>m.status === "pending").length : 0;
   $("pendDot").classList.toggle("hide", n === 0);
 }
 
@@ -2399,6 +2406,20 @@ function renderMembers(){
   const card = $("cardMembers");
   if(!isAdmin()){ card.classList.add("hide"); return; }
   card.classList.remove("hide");
+
+  /* 승인제 SQL 미실행 — 깨진 화면 대신 안내 */
+  if(!MEMBERS_READY){
+    $("memPending").innerHTML =
+      `<div class="mem-setup">`
+      + `<b>승인제가 아직 켜지지 않았습니다.</b><br>`
+      + `Supabase 대시보드 → SQL Editor 에서 <b>approval.sql</b> 을 한 번 실행해 주세요. `
+      + `실행하면 지금 쓰는 분들은 전원 그대로 유지되고, 이후 가입자만 승인 대기로 들어옵니다.<br>`
+      + `<span style="color:var(--danger)">지금은 새로 가입하는 사람이 바로 입장합니다.</span>`
+      + `</div>`;
+    $("memActive").innerHTML = "";
+    $("memInfo").textContent = `현재 등록된 계정 ${comma(MEMBERS.length)}개`;
+    return;
+  }
 
   const pending = MEMBERS.filter(m=>m.status === "pending");
   const others  = MEMBERS.filter(m=>m.status !== "pending");
