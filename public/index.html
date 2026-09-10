@@ -500,7 +500,7 @@ table.grid tr.tot td.dim{background:#f7f9fc}
           </select>
         </div>
         <label class="hint" style="margin:0 0 9px;display:flex;align-items:center;gap:5px;white-space:nowrap">
-          <input type="checkbox" id="monHideEmpty" checked> 목표·실적 모두 없는 렙사 숨기기
+          <input type="checkbox" id="monHideEmpty" checked> <span id="monHideLbl">당월 실적 있는 렙사만</span>
         </label>
         <button id="monExpandAll" class="btn sm">모두 펼치기</button>
         <button id="monCollapseAll" class="btn sm ghost">모두 접기</button>
@@ -2692,6 +2692,7 @@ function monSyncControls(){
   sel.value = MON.month;
   $("monSort").value = MON.sort;
   $("monHideEmpty").checked = MON.hideEmpty;
+  $("monHideLbl").textContent = `${Number(MON.month.slice(5))}월 실적 있는 렙사만`;
   $("monQ").value = MON.q;
 }
 
@@ -2745,7 +2746,8 @@ async function renderMonthly(){
       yg: sum(g,12), ya: sum(a,12), yp: sum(p,12)
     };
   });
-  if(MON.hideEmpty) list = list.filter(r => r.mg || r.ma || r.cg || r.ca || r.cp);
+  /* 목표도 실적도 전혀 없는 렙사(설정 목록에만 있는 이름)는 항상 제외 */
+  list = list.filter(r => r.yg || r.ya || r.yp);
   const q = MON.q.trim().toLowerCase();
   if(q) list = list.filter(r => r.nm.toLowerCase().includes(q));
 
@@ -2759,13 +2761,23 @@ async function renderMonthly(){
   };
   list.sort(SORTS[MON.sort] || SORTS.act);
 
-  /* 합계 KPI */
+  /* 합계 KPI — 화면에서 숨긴 렙사도 반드시 포함해야 목표·달성률이 맞습니다 */
   const T = list.reduce((t,r)=>({
     mg:t.mg+r.mg, ma:t.ma+r.ma, mp:t.mp+r.mp, prev:t.prev+r.prev,
     cg:t.cg+r.cg, ca:t.ca+r.ca, cp:t.cp+r.cp
   }), {mg:0,ma:0,mp:0,prev:0,cg:0,ca:0,cp:0});
 
+  /* 엑셀은 숨긴 렙사까지 전부 (합계 행과 맞아야 하므로) */
   MON_LAST = { list, T, M, ym: MON.month };
+
+  /* 화면에는 당월 실적이 있는 렙사만 — 검색 중에는 전부 보여줍니다 */
+  const allCnt = list.length;
+  let hidden = 0;
+  if(MON.hideEmpty && !q){
+    const shown = list.filter(r => r.ma > 0);
+    hidden = allCnt - shown.length;
+    list = shown;
+  }
 
   const tile = (cls,t,v,s2,extra="") =>
     `<div class="kpi ${cls}"><div class="t">${t}</div><div class="v">${v}</div><div class="s">${s2}</div>${extra}</div>`;
@@ -2784,6 +2796,9 @@ async function renderMonthly(){
 
   if(!list.length){
     $("monList").innerHTML = ""; $("monEmpty").classList.remove("hide");
+    $("monEmpty").textContent = q ? "검색 결과가 없습니다."
+      : (allCnt ? `${M}월 실적이 있는 미디어렙사가 없습니다. 아래 체크를 해제하면 전체가 보입니다.`
+                : "표시할 미디어렙사가 없습니다.");
     $("monInfo").textContent = ""; return;
   }
   $("monEmpty").classList.add("hide");
@@ -2821,7 +2836,9 @@ async function renderMonthly(){
 
   const openN = Object.values(MON.open).filter(Boolean).length;
   $("monInfo").textContent =
-    `미디어렙사 ${comma(list.length)}개 · ${M}월 목표 ${eok2(T.mg)} / 실적 ${eok2(T.ma)} (${pct2(T.ma,T.mg)})`
+    `미디어렙사 ${comma(list.length)}개 표시`
+    + (hidden ? ` (${M}월 실적 없는 ${comma(hidden)}개 숨김 — 합계·엑셀에는 포함)` : "")
+    + ` · ${M}월 목표 ${eok2(T.mg)} / 실적 ${eok2(T.ma)} (${pct2(T.ma,T.mg)})`
     + ` · 1~${M}월 누적 ${pct2(T.ca,T.cg)}`
     + (openN?` · ${openN}개 펼침`:"")
     + ` | 렙사 목표 합계는 미디어렙 채널 기준이라 전사 목표와 다릅니다.`;
