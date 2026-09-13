@@ -163,6 +163,18 @@ table.grid th.clip{max-width:150px}
 .set-item input.ed{flex:1;padding:4px 7px;border:1px solid var(--brand);border-radius:6px}
 .set-add{padding:9px 12px;border-top:1px solid var(--line2);display:flex;gap:6px}
 .set-add input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px}
+/* ---------- 복사해서 등록 ---------- */
+.copy-note{background:#eef4ff;border:1px solid #cddcf7;border-left:3px solid var(--brand);
+  border-radius:9px;padding:10px 14px;margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.7}
+.copy-note b{color:var(--text)}
+td.rowact{white-space:nowrap}
+td.rowact .btn{margin-left:4px}
+td.rowact .btn:first-child{margin-left:0}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .copy-note{background:#1b2740;border-color:#2f4472}
+}
+:root[data-theme="dark"] .copy-note{background:#1b2740;border-color:#2f4472}
+
 /* ---------- 승인 대기 / 회원 관리 ---------- */
 .wait-box{background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:14px;
   display:grid;gap:9px}
@@ -658,6 +670,7 @@ table.grid tr.tot td.dim{background:#f7f9fc}
   <div class="modal">
     <div class="modal-h"><h3 id="rmTitle">신규 등록</h3><button class="btn ghost sm x" data-close="rowModal">✕</button></div>
     <div class="modal-b">
+      <div id="rmCopyNote" class="copy-note hide"></div>
       <div class="frm">
         <div><label class="lb req">제안일</label><input id="iDate" class="fld" type="date"></div>
         <div><label class="lb">제안월 (자동)</label><input id="iPropMonth" class="fld" readonly style="background:#f5f7fa;color:var(--muted)"></div>
@@ -1353,7 +1366,8 @@ function renderList(){
     }).join("");
     return `<tr data-id="${r.id}">
       <td style="color:var(--muted)">${start+i+1}</td>${cells}
-      <td>${canEdit(r)?`<button class="btn sm ghost" data-edit="${r.id}">수정</button>`:`<span class="hint">-</span>`}</td>
+      <td class="rowact"><button class="btn sm ghost" data-copy="${r.id}" title="이 건을 복사해서 새로 등록">복사</button>`
+      + `${canEdit(r)?`<button class="btn sm ghost" data-edit="${r.id}">수정</button>`:``}</td>
     </tr>`;
   }).join("") + "</tbody>";
 
@@ -1374,6 +1388,9 @@ function renderList(){
   $("dataTbl").querySelectorAll("[data-edit]").forEach(b=>{
     b.onclick = ()=>openRow(ROWS.find(r=>r.id===b.dataset.edit));
   });
+  $("dataTbl").querySelectorAll("[data-copy]").forEach(b=>{
+    b.onclick = ()=>openRow(ROWS.find(r=>r.id===b.dataset.copy), true);
+  });
 }
 
 /* ===================== 등록/수정 모달 ===================== */
@@ -1385,21 +1402,37 @@ function setSelect(el, val){
   el.value = val || "";
 }
 
-function openRow(row){
-  EDIT_ID = row ? row.id : null;
-  $("rmTitle").textContent = row ? "데이터 수정" : "신규 등록";
+/**
+ * row 없이 부르면 신규 등록, row 만 주면 수정,
+ * copy=true 면 그 건을 그대로 복사해 "새 건"으로 등록합니다.
+ * (제안 → 수주로 이어지는 입력이 잦아, 제안 건을 복사하면 제안/수주만 수주로 미리 바꿔 둡니다)
+ */
+function openRow(row, copy){
+  copy = !!copy && !!row;
+  EDIT_ID = (row && !copy) ? row.id : null;
+  $("rmTitle").textContent = copy ? "복사해서 등록" : (row ? "데이터 수정" : "신규 등록");
   $("rmMsg").textContent = ""; $("rmMsg").className = "msg";
-  $("btnDelete").classList.toggle("hide", !row || !canEdit(row));
-  $("rmOwner").textContent = row
+  $("btnDelete").classList.toggle("hide", copy || !row || !canEdit(row));
+  $("rmOwner").textContent = (row && !copy)
     ? `등록자 ${row.created_name||"-"} · ${new Date(row.created_at).toLocaleString("ko-KR")}`
     : `등록자: ${ME.name} (자동 기록)`;
+
+  /* 복사 안내 — 원본은 그대로 남고 새 건으로 저장된다는 점을 알려 줍니다 */
+  const cn = $("rmCopyNote");
+  cn.classList.toggle("hide", !copy);
+  if(copy){
+    cn.innerHTML = `<b>복사한 내용입니다.</b> 원본(${esc(trunc(row.advertiser||"-",14))} · `
+      + `${esc(row.stage)} · ${comma(row.amount)}원)은 그대로 남고, <b>새 건으로 저장</b>됩니다.`
+      + (row.stage === "제안" ? ` 제안/수주를 <b>수주</b>로 미리 바꿔 두었습니다 — 날짜와 금액만 확인해 주세요.` : ``);
+  }
 
   refreshOptionLists();
   const today = fmtISO(new Date());
   $("iDate").value       = row?.propose_date || today;
   $("iExecMonth").value  = row?.exec_month  || `${YEAR}-01`;
   $("iRevMonth").value   = row?.revenue_month || `${YEAR}-01`;
-  $("iStage").value      = row?.stage || "제안";
+  $("iStage").value      = copy ? (row.stage === "제안" ? "수주" : row.stage)
+                                : (row?.stage || "제안");
   setSelect($("iChannel"),  row?.channel || SETTINGS.channel[0] || "");
   setSelect($("iRep"),      row?.rep || "");
   setSelect($("iProduct"),  row?.product || SETTINGS.product[0] || "");
@@ -1410,6 +1443,7 @@ function openRow(row){
   $("iAdvertiser").value = row?.advertiser || "";
   $("iBrand").value      = row?.brand || "";
   $("iAmount").value     = row ? comma(row.amount) : "";
+  if(copy) setTimeout(()=>{ $("iDate").focus(); $("iDate").select?.(); }, 60);
   $("iBasic").value      = commaIfNumeric(row?.basic_budget || "");
   $("iNote").value       = row?.note || "";
   syncProposeMonth();
