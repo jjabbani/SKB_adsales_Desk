@@ -163,6 +163,16 @@ table.grid th.clip{max-width:150px}
 .set-item input.ed{flex:1;padding:4px 7px;border:1px solid var(--brand);border-radius:6px}
 .set-add{padding:9px 12px;border-top:1px solid var(--line2);display:flex;gap:6px}
 .set-add input{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:7px}
+/* ---------- 입력 폼 보조 안내 ---------- */
+.fhint{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.4}
+.month-hint{background:#fff8ec;border:1px solid #f0dfc0;border-radius:8px;
+  padding:8px 12px;font-size:11.5px;color:#8a5a12;margin-top:-4px}
+.month-hint b{color:var(--text)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .month-hint{background:#2a2318;border-color:#4a3b23;color:#d3a441}
+}
+:root[data-theme="dark"] .month-hint{background:#2a2318;border-color:#4a3b23;color:#d3a441}
+
 /* ---------- 복사해서 등록 ---------- */
 .copy-note{background:#eef4ff;border:1px solid #cddcf7;border-left:3px solid var(--brand);
   border-radius:9px;padding:10px 14px;margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.7}
@@ -676,9 +686,12 @@ table.grid tr.tot td.dim{background:#f7f9fc}
         <div><label class="lb">제안월 (자동)</label><input id="iPropMonth" class="fld" readonly style="background:#f5f7fa;color:var(--muted)"></div>
         <div><label class="lb req">제안/수주</label><select id="iStage" class="fld"><option>제안</option><option>수주</option></select></div>
 
-        <div><label class="lb req">집행(예정)월</label><input id="iExecMonth" class="fld" type="month"></div>
-        <div><label class="lb req">매출월</label><input id="iRevMonth" class="fld" type="month"></div>
+        <div><label class="lb req">집행(예정)월</label><input id="iExecMonth" class="fld" type="month">
+          <div class="fhint">고르면 매출월도 같이 바뀝니다</div></div>
+        <div><label class="lb req">매출월</label><input id="iRevMonth" class="fld" type="month">
+          <div class="fhint">다르면 직접 고치세요</div></div>
         <div><label class="lb req">금액(원)</label><input id="iAmount" class="fld" inputmode="numeric" placeholder="10,000,000" style="text-align:right;font-weight:700"></div>
+        <div id="monthHint" class="month-hint hide" style="grid-column:1/-1"></div>
 
         <div><label class="lb req">채널</label><select id="iChannel" class="fld"></select></div>
         <div><label class="lb">미디어렙</label><select id="iRep" class="fld"></select></div>
@@ -1178,19 +1191,38 @@ async function addYear(){
 </script>
 <script>
 /* ===================== 데이터 로드 · 실시간 ===================== */
+/** 같은 id 가 두 번 들어오면 뒤엣것(최신)만 남깁니다 */
+function dedupeById(rows){
+  const seen = new Map();
+  (rows||[]).forEach(r=>{ if(r && r.id) seen.set(r.id, r); });
+  return [...seen.values()];
+}
+
+/* 조회가 여러 번 겹칠 때, 늦게 도착한 옛 응답이 최신 목록을 덮어쓰지 않도록 하는 번호 */
+let LOAD_SEQ = 0;
+
 async function loadYear(y){
+  const seq = ++LOAD_SEQ;
   YEAR = y;
   if(!YEARS.includes(y)){ YEARS.push(y); YEARS.sort((a,b)=>a-b); }
   renderYearTabs();
-  ROWS = [];
+
+  /* 주의 — 불러오는 도중에는 ROWS 를 건드리지 않습니다.
+     중간에 실시간 이벤트가 같은 행을 ROWS 에 넣어 버리면
+     조회 결과와 합쳐지면서 같은 건이 두 줄로 보이게 됩니다. */
+  const acc = [];
   const PAGE_N = 1000;
   for(let from=0; ; from+=PAGE_N){
     const { data, error } = await sb.from("sales_rows").select("*")
       .eq("fiscal_year", y).order("propose_date",{ascending:true}).range(from, from+PAGE_N-1);
+    if(seq !== LOAD_SEQ) return;                 // 더 새로운 조회가 시작됨 → 이 응답은 버립니다
     if(error){ toast("불러오기 실패: "+error.message); break; }
-    ROWS = ROWS.concat(data||[]);
+    acc.push(...(data||[]));
     if(!data || data.length < PAGE_N) break;
   }
+  if(seq !== LOAD_SEQ) return;
+
+  ROWS = dedupeById(acc);
   YEAR_CACHE[y] = ROWS;
   refreshOptionLists();
   render();
@@ -1198,8 +1230,8 @@ async function loadYear(y){
 }
 
 function subscribeRealtime(){
-  if(rtChannel) sb.removeChannel(rtChannel);
-  rtChannel = sb.channel("sales-"+YEAR)
+  if(rtChannel) return;                          // 연도를 바꿔도 채널은 하나만 유지합니다
+  rtChannel = sb.channel("sales-desk")
     .on("postgres_changes", { event:"*", schema:"public", table:"sales_rows" }, (p)=>{
       const row = p.new && p.new.id ? p.new : p.old;
       if(!row) return;
@@ -1447,11 +1479,22 @@ function openRow(row, copy){
   $("iBasic").value      = commaIfNumeric(row?.basic_budget || "");
   $("iNote").value       = row?.note || "";
   syncProposeMonth();
+  syncMonthHint();
   $("rowModal").classList.remove("hide");
 }
 function syncProposeMonth(){
   const d = $("iDate").value;
   $("iPropMonth").value = d ? monthLabel(d.slice(0,7)) : "";
+}
+
+/** 집행(예정)월과 매출월이 다를 때만 알려 줍니다 (예외 건인지 눈으로 확인) */
+function syncMonthHint(){
+  const ex = $("iExecMonth").value, rv = $("iRevMonth").value;
+  const el = $("monthHint");
+  if(!el) return;
+  const diff = ex && rv && ex !== rv;
+  el.classList.toggle("hide", !diff);
+  if(diff) el.innerHTML = `집행 <b>${monthLabel(ex)}</b> · 매출 <b>${monthLabel(rv)}</b> — 달이 다릅니다 (예외 건이면 그대로 두세요)`;
 }
 
 async function saveRow(){
@@ -3332,7 +3375,13 @@ function bindUI(){
   $("btnSaveRow").onclick  = saveRow;
   $("btnDelete").onclick   = deleteRow;
   $("iDate").addEventListener("change", syncProposeMonth);
-  $("iExecMonth").addEventListener("change", ()=>{ if(!$("iRevMonth").value) $("iRevMonth").value = $("iExecMonth").value; });
+  /* 집행(예정)월을 고르면 매출월도 같이 따라갑니다 (90% 이상 동일).
+     예외 건은 매출월을 직접 고치면 되고, 다르면 아래에 표시해 줍니다. */
+  $("iExecMonth").addEventListener("change", ()=>{
+    $("iRevMonth").value = $("iExecMonth").value;
+    syncMonthHint();
+  });
+  $("iRevMonth").addEventListener("change", syncMonthHint);
 
   // 금액: 입력하는 즉시 천단위 콤마
   $("iAmount").addEventListener("input", e=>{
