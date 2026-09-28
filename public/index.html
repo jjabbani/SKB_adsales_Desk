@@ -173,6 +173,23 @@ table.grid th.clip{max-width:150px}
 }
 :root[data-theme="dark"] .month-hint{background:#2a2318;border-color:#4a3b23;color:#d3a441}
 
+/* ---------- 상품별 매출목표 · 예상실적 표 ---------- */
+tr.pg-total td{background:var(--now-bg);font-weight:800;border-top:1px solid var(--brand);
+  border-bottom:1px solid var(--brand)}
+tr.pg-main td{font-weight:600}
+tr.fc-sub td{background:#f7f9fc;font-weight:700}
+input.fc-in{width:82px;text-align:right;padding:4px 7px;font-size:12px;border:1px solid var(--line);
+  border-radius:6px;background:var(--panel);color:var(--text);font-variant-numeric:tabular-nums}
+input.fc-note{width:150px;padding:4px 8px;font-size:11.5px;border:1px solid var(--line);
+  border-radius:6px;background:var(--panel);color:var(--text)}
+input.fc-in:focus,input.fc-note:focus{outline:none;border-color:var(--brand);
+  box-shadow:0 0 0 2px rgba(31,95,214,.14)}
+#pgTbl td,#fcTbl td,#pgtTbl td{white-space:nowrap}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) tr.fc-sub td{background:#1f2634}
+}
+:root[data-theme="dark"] tr.fc-sub td{background:#1f2634}
+
 /* ---------- 복사해서 등록 ---------- */
 .copy-note{background:#eef4ff;border:1px solid #cddcf7;border-left:3px solid var(--brand);
   border-radius:9px;padding:10px 14px;margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.7}
@@ -384,6 +401,35 @@ table.grid tr.tot td.dim{background:#f7f9fc}
         <label class="lb" style="margin:0 6px 0 0">기준 월</label>
         <select id="curMonth" class="fld" style="width:auto"></select>
       </div>
+    </div>
+
+    <!-- ① 상품별 매출목표 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-h">
+        <h2 id="pgTitle">상품별 매출목표</h2>
+        <span class="hint" style="margin:0">금액 단위는 <b>억원</b>입니다. 실시간은 <b>ad+ · BASIC · 지역광고 합산</b>입니다.</span>
+        <div class="spacer"></div>
+        <span class="hint" id="pgEdit" style="margin:0"></span>
+      </div>
+      <div class="pivot-wrap" style="max-height:none">
+        <table class="grid" id="pgTbl"></table>
+        <div id="pgEmpty" class="empty hide"></div>
+      </div>
+      <div class="tbl-foot"><span id="pgInfo"></span></div>
+    </div>
+
+    <!-- ② 당월 예상실적 -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-h">
+        <h2 id="fcTitle">예상실적</h2>
+        <span class="hint" style="margin:0"><b>추가예상</b>과 <b>비고</b>는 직접 입력합니다. 단위는 <b>억원</b>.</span>
+        <div class="spacer"></div>
+        <button id="btnFcSave" class="btn sm primary hide">추가예상 저장</button>
+      </div>
+      <div class="pivot-wrap" style="max-height:none">
+        <table class="grid" id="fcTbl"></table>
+      </div>
+      <div class="tbl-foot"><span id="fcInfo"></span></div>
     </div>
 
     <!-- 매출목표 대비 실적 -->
@@ -670,6 +716,7 @@ table.grid tr.tot td.dim{background:#f7f9fc}
     </div>
     <div id="roleNote" class="role-note"></div>
     <div class="card" id="targetCard"></div>
+    <div class="card" id="pgtCard" style="margin-top:12px"></div>
     <div class="set-grid" id="setGrid"></div>
   </section>
 </main>
@@ -804,6 +851,10 @@ const SETTINGS = {
   /* 매출목표 — { "연도": { goal:[12개월], trend:[12개월] } } · 설정 탭에서 수정 */
   /* 미디어렙사별 월 목표 — { "연도": { "렙사명":[12개월] } } */
   rep_targets: {"2025":{"메조미디어":[134700000,127900000,157700000,160900000,166400000,164000000,160900000,153800000,175800000,192300000,203200000,202500000],"인크로스":[101000000,95900000,118300000,120700000,124800000,123000000,120700000,115400000,131800000,144200000,152400000,151800000],"APM":[168300000,159900000,197200000,201100000,208000000,205000000,201100000,192300000,219700000,240300000,254100000,253100000],"나스미디어":[101000000,95900000,118300000,120700000,124800000,123000000,120700000,115400000,131800000,144200000,152400000,151800000],"다트미디어":[20200000,19200000,23700000,24100000,25000000,24600000,24100000,23100000,26400000,28800000,30500000,30400000],"이펙트원":[47100000,44800000,55200000,56300000,58200000,57400000,56300000,53800000,61500000,67300000,71100000,70900000],"DMC미디어":[53900000,51200000,63100000,64300000,66500000,65600000,64300000,61500000,70300000,76900000,81300000,81000000],"모아미디어":[47100000,44800000,55200000,56300000,58200000,57400000,56300000,53800000,61500000,67300000,71100000,70900000],"리노컴즈":[33700000,32000000,39400000,40200000,41600000,41000000,40200000,38500000,43900000,48100000,50800000,50600000],"애드크래프트":[47100000,44800000,55200000,56300000,58200000,57400000,56300000,53800000,61500000,67290000,71100000,70900000],"휴앤아이":[13500000,12800000,15800000,16100000,16600000,16400000,16100000,15400000,17600000,19200000,20300000,20200000],"디지털퍼스트":[6700000,6400000,7900000,8000000,8300000,8200000,8000000,7700000,8800000,9600000,10200000,10100000],"프라이머스":[33700000,32000000,39400000,40200000,41600000,41000000,40200000,38500000,43900000,48100000,50800000,50600000],"미디어747":[20200000,19200000,23700000,24100000,25000000,24600000,24100000,23100000,26400000,28800000,30500000,30400000],"KOBACO":[13500000,12800000,15800000,16100000,16600000,16400000,16100000,15400000,17600000,19200000,20300000,20200000],"딜라이브":[107700000,102300000,126200000,128700000,133100000,131200000,128700000,123000000,140600000,153800000,162600000,162000000],"스카이라이프":[67300000,64000000,78900000,80400000,83200000,82000000,80400000,76900000,87900000,96100000,101600000,101200000],"HCN":[33700000,32000000,39400000,40200000,41600000,41000000,40200000,38500000,43900000,48100000,50800000,50600000],"미디어에스":[6700000,6400000,7900000,8000000,8300000,8200000,8000000,7700000,8800000,9600000,10200000,10100000],"JCN울산방송":[3400000,3200000,3900000,4000000,4200000,4100000,4000000,3800000,4400000,4800000,5100000,5100000],"어니스트컴퍼니":[10100000,9600000,11800000,12100000,12500000,12300000,12100000,11500000,13200000,14400000,15200000,15200000],"DK텔레콤":[10100000,9600000,11800000,12100000,12500000,12300000,12100000,11500000,13200000,14400000,15200000,15200000],"드림에이지이":[87500000,83100000,102500000,104600000,108100000,106600000,104600000,100000000,114300000,125000000,132100000,131600000],"문화미디어렙":[20200000,19200000,23700000,24100000,25000000,24600000,24100000,23100000,26400000,28800000,30500000,30400000],"바이메이더":[6700000,6400000,7900000,8000000,8300000,8200000,8000000,7700000,8800000,9600000,10200000,10100000],"KICAD":[80800000,76700000,94600000,96500000,99800000,98400000,96500000,92300000,105500000,115400000,121900000,121500000],"스카이라이프TV":[3400000,3200000,3900000,4000000,4200000,4100000,4000000,3800000,4400000,4800000,5100000,5100000],"디플랜360":[20200000,19200000,23700000,24100000,25000000,24600000,24100000,23100000,26400000,28800000,30500000,30400000]},"2026":{"메조미디어":[87000000,85000000,100000000,97000000,97000000,92000000,90000000,103000000,105000000,111000000,113000000,121000000],"인크로스":[58000000,57000000,67000000,65000000,64000000,61000000,60000000,68000000,70000000,74000000,76000000,80000000],"APM":[178000000,174000000,205000000,199000000,198000000,188000000,184000000,210000000,216000000,227000000,233000000,247000000],"나스미디어":[106000000,104000000,123000000,119000000,119000000,113000000,110000000,126000000,130000000,136000000,139000000,148000000],"파스텔애드":[12000000,12000000,14000000,14000000,13000000,13000000,12000000,14000000,15000000,15000000,16000000,17000000],"다트미디어":[7000000,7000000,8000000,8000000,8000000,8000000,7000000,9000000,9000000,9000000,9000000,10000000],"이펙트원":[27000000,27000000,31000000,30000000,30000000,29000000,28000000,32000000,33000000,35000000,36000000,38000000],"DMC미디어":[58000000,57000000,67000000,65000000,64000000,61000000,60000000,68000000,70000000,74000000,76000000,80000000],"모아미디어":[58000000,57000000,67000000,65000000,64000000,61000000,60000000,68000000,70000000,74000000,76000000,80000000],"리노컴즈":[25000000,25000000,29000000,28000000,28000000,27000000,26000000,30000000,31000000,32000000,33000000,35000000],"애드크래프트":[73000000,72000000,85000000,82000000,82000000,78000000,76000000,87000000,89000000,94000000,96000000,102000000],"휴앤아이":[20000000,19000000,23000000,22000000,22000000,21000000,20000000,23000000,24000000,25000000,26000000,27000000],"디지털퍼스트":[36000000,35000000,42000000,40000000,40000000,38000000,37000000,43000000,44000000,46000000,47000000,50000000],"프라이머스":[43000000,42000000,50000000,49000000,48000000,46000000,45000000,51000000,53000000,55000000,57000000,60000000],"미디어747":[22000000,22000000,26000000,25000000,25000000,24000000,23000000,27000000,27000000,29000000,29000000,31000000],"KOBACO":[25000000,25000000,29000000,28000000,28000000,27000000,26000000,30000000,31000000,32000000,33000000,35000000],"딜라이브":[123000000,120000000,142000000,138000000,137000000,130000000,127000000,145000000,149000000,157000000,161000000,171000000],"스카이라이프":[51000000,50000000,59000000,57000000,57000000,54000000,53000000,61000000,62000000,65000000,67000000,71000000],"HCN":[49000000,48000000,57000000,55000000,55000000,52000000,51000000,58000000,60000000,63000000,64000000,68000000],"JCN울산방송":[1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000],"어니스트컴퍼니":[14000000,14000000,17000000,16000000,16000000,15000000,15000000,17000000,18000000,18000000,19000000,20000000],"DK텔레콤":[29000000,28000000,33000000,32000000,32000000,31000000,30000000,34000000,35000000,37000000,38000000,40000000],"드림에이지이":[39000000,38000000,45000000,44000000,44000000,41000000,40000000,46000000,47000000,50000000,51000000,54000000],"애드원":[22000000,21000000,25000000,24000000,24000000,23000000,22000000,26000000,26000000,28000000,28000000,30000000],"LG헬로비전":[4000000,4000000,5000000,5000000,5000000,5000000,4000000,5000000,5000000,6000000,6000000,6000000],"시케이미디어":[30000000,29000000,35000000,34000000,33000000,32000000,31000000,35000000,36000000,38000000,39000000,42000000],"넥스트비전":[22000000,21000000,25000000,24000000,24000000,23000000,22000000,26000000,26000000,28000000,28000000,30000000],"클래시컴퍼니":[9000000,9000000,10000000,10000000,10000000,9000000,9000000,10000000,11000000,11000000,12000000,12000000],"나인코리아":[8000000,7000000,9000000,8000000,8000000,8000000,8000000,9000000,9000000,10000000,10000000,10000000],"클라우디파이":[4000000,4000000,5000000,5000000,5000000,5000000,4000000,5000000,5000000,6000000,6000000,6000000],"초현애드":[4000000,4000000,4000000,4000000,4000000,4000000,4000000,4000000,4000000,5000000,5000000,5000000],"크레용":[22000000,21000000,25000000,24000000,24000000,23000000,22000000,26000000,26000000,28000000,28000000,30000000]}},
+  /* 상품별 월 목표 — { "연도": { "행키": [12개월] } } · 설정 탭에서 연도별 관리 */
+  product_targets: {"2026":{"vod":[88000000,86000000,92000000,87000000,87000000,76000000,78000000,90000000,93000000,102000000,102000000,120000000],"live":[1265000000,1247000000,1444000000,1406000000,1402000000,1365000000,1322000000,1501000000,1532000000,1587000000,1577000000,1621000000],"addr":[128000000,120000000,151000000,143000000,142000000,124000000,127000000,147000000,152000000,167000000,186000000,213000000],"cvod":[3000000,3000000,4000000,3000000,3000000,3000000,3000000,3000000,4000000,4000000,4000000,5000000],"clive":[183000000,173000000,217000000,205000000,203000000,178000000,182000000,212000000,218000000,240000000,267000000,306000000],"bm_commerce":[55000000,55000000,65000000,65000000,65000000,55000000,55000000,65000000,70000000,75000000,80000000,95000000],"bm_bizchat":[50000000,50000000,70000000,70000000,70000000,70000000,60000000,60000000,70000000,70000000,80000000,80000000],"bm_onad":[0,3000000,7000000,7000000,7000000,10000000,10000000,20000000,20000000,20000000,23000000,23000000],"bm_asum":[1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000],"bm_chan":[3000000,3000000,4000000,3000000,3000000,3000000,3000000,3000000,4000000,4000000,4000000,5000000],"bm_etc":[3000000,3000000,4000000,3000000,3000000,3000000,3000000,3000000,4000000,4000000,4000000,5000000]}},
+  /* 당월 추가예상 · 비고 (수기) — { "YYYY-MM": { "행키": {add: 원, note: "" } } } */
+  forecast:    {},
   targets:     {"2025": {"goal": [1720000000, 1630000000, 2010000000, 2050000000, 2120000000, 2090000000, 2050000000, 1960000000, 2240000000, 2450000000, 2590000000, 2580000000]}, "2026": {"goal": [1775000000, 1740000000, 2050000000, 1990000000, 1980000000, 1880000000, 1840000000, 2100000000, 2160000000, 2270000000, 2330000000, 2470000000], "trend": [1788313723, 1536053904, 1595161946, 1559390214, 1563205889, 1448366108, 1600449860, 1822949860, 1958149860, 2128149860, 2358149860, 2658149860]}}
 };
 
@@ -997,6 +1048,104 @@ function optionsFor(key){
   return [...set].sort((a,b)=>a.localeCompare(b,"ko"));
 }
 /** 해당 연도의 목표 배열 (없으면 빈 배열) — kind: "goal" | "trend" */
+/* =====================================================================
+   상품별 매출목표 / 예상실적 — 행 정의
+   products : 이 행에 묶이는 "상품" 값들 (전체 데이터의 상품 칸 기준)
+   goal     : true 면 목표를 입력받는 행, false 면 실적만 (예: 지역광고)
+   ===================================================================== */
+const PGOAL_ROWS = [
+  { key:"vod",   grp:"IPTV",   name:"VOD 로딩",          products:["VOD"],                  goal:true },
+  /* 실시간 = ad+ · BASIC · 지역광고 합산 */
+  { key:"live",  grp:"IPTV",   name:"실시간 (ad+ BASIC 지역)", products:["AD+","Basic","지역"], goal:true,
+    split:[ { key:"live_ad",   name:"실시간 — ad+",     products:["AD+"]   },
+            { key:"live_basic",name:"실시간 — BASIC",   products:["Basic"] },
+            { key:"live_local",name:"실시간 — 지역광고", products:["지역"]  } ] },
+  { key:"addr",  grp:"IPTV",   name:"Addressable TV AD", products:["Addr.Tv"],              goal:true },
+  { key:"cvod",  grp:"CATV",   name:"CATV VOD",          products:["C-VOD"],                goal:true },
+  { key:"clive", grp:"CATV",   name:"CATV 실시간",        products:["C-실시간"],              goal:true },
+  { key:"bm",    grp:"신규BM",  name:"신규 BM",            products:[],                       goal:"sum",
+    kids:[
+      { key:"bm_commerce", name:"커머스링크 (커머스·시니어)", products:["커머스","시니어"] },
+      { key:"bm_bizchat",  name:"비즈챗",                  products:["비즈챗"] },
+      { key:"bm_onad",     name:"온애드",                  products:["온애드"] },
+      /* 아래 3개는 화면에서 접어 두되 신규BM 합계·목표에는 그대로 들어갑니다 */
+      { key:"bm_asum",     name:"ASUM",                   products:["ASUM"],  hidden:true },
+      { key:"bm_tion",     name:"티온",                    products:["티온"],   hidden:true },
+      { key:"bm_etc",      name:"기타",                    products:["기타"],   hidden:true }
+    ] }
+];
+
+/** 목표를 직접 입력받는 행 (신규BM 은 하위 합이라 제외)
+    숨김 항목도 설정에서는 보여 줍니다 — 목표를 고칠 수 있어야 하므로 */
+function pgoalInputRows(){
+  const out = [];
+  PGOAL_ROWS.forEach(r=>{
+    if(r.goal === true) out.push({ key:r.key, grp:r.grp, name:r.name });
+    else if(r.goal === "sum") (r.kids||[]).forEach(k=>
+      out.push({ key:k.key, grp:r.grp, name:k.name, hidden:!!k.hidden }));
+  });
+  return out;
+}
+
+/** 그 해 상품별 목표 — { 행키: [12개월] } */
+function productTargetsOf(year){
+  const t = (SETTINGS.product_targets || {})[String(year)] || {};
+  const out = {};
+  Object.keys(t).forEach(k=>{
+    const a = t[k];
+    if(Array.isArray(a) && a.length === 12) out[k] = a.map(v=>Number(v)||0);
+  });
+  /* 예전에 "채널진입광고"로 넣어 둔 목표는 티온 목표입니다 — 자동으로 옮겨 씁니다 */
+  if(out.bm_chan){
+    const cur = out.bm_tion || Array(12).fill(0);
+    out.bm_tion = cur.map((v,i)=>v || out.bm_chan[i] || 0);
+    delete out.bm_chan;
+  }
+  return out;
+}
+function hasProductTargets(year){ return Object.keys(productTargetsOf(year)).length > 0; }
+
+/** 한 행의 그 달 목표 (신규BM 은 하위 합) */
+function pgoalOf(pt, row, mIdx){
+  if(row.goal === "sum") return (row.kids||[]).reduce((s,k)=>s + ((pt[k.key]||[])[mIdx]||0), 0);
+  if(row.goal !== true) return null;                    // 지역광고 등 — 목표 없음
+  return (pt[row.key]||[])[mIdx] || 0;
+}
+
+/** 수주 rows → { 상품: [12개월 금액] } (매출월 기준) */
+function productActuals(rows){
+  const map = {};
+  (rows||[]).forEach(r=>{
+    if(r.stage !== "수주") return;
+    const m = Number(String(r.revenue_month||"").slice(5));
+    if(!(m>=1 && m<=12)) return;
+    const p = (r.product||"").trim() || "(미입력)";
+    (map[p] = map[p] || Array(12).fill(0))[m-1] += Number(r.amount)||0;
+  });
+  return map;
+}
+/** 행에 묶인 상품들의 그 달 실적 합 */
+function pactOf(act, products, mIdx){
+  return (products||[]).reduce((s,p)=>s + ((act[p]||[])[mIdx]||0), 0);
+}
+/** 행에 묶인 상품들의 1~n월 누적 */
+function pactSum(act, products, n){
+  return (products||[]).reduce((s,p)=>{
+    const a = act[p]||[]; let t=0; for(let i=0;i<n;i++) t += a[i]||0; return s+t;
+  }, 0);
+}
+
+/** 당월 추가예상·비고 — { 행키: {add, note} } */
+function forecastOf(ym){
+  const f = (SETTINGS.forecast || {})[ym] || {};
+  const out = {};
+  Object.keys(f).forEach(k=>{
+    const v = f[k] || {};
+    out[k] = { add: Number(v.add)||0, note: String(v.note||"") };
+  });
+  return out;
+}
+
 function targetsOf(year, kind){
   const t = (SETTINGS.targets || {})[String(year)];
   const arr = t && t[kind];
@@ -1138,7 +1287,8 @@ async function loadSettings(){
   data.forEach(r=>{
     let items = r.items;
     if(typeof items === "string"){ try{ items = JSON.parse(items); }catch(e){ items = null; } }
-    if(r.key === "targets" || r.key === "rep_targets"){
+    if(r.key === "targets" || r.key === "rep_targets"
+       || r.key === "product_targets" || r.key === "forecast"){
       if(items && typeof items === "object" && !Array.isArray(items)) SETTINGS[r.key] = items;
     }
     else if(Array.isArray(items)) SETTINGS[r.key] = items;
@@ -1229,6 +1379,17 @@ async function loadYear(y){
   subscribeRealtime();
 }
 
+/* 엑셀 업로드처럼 수백~수천 건이 한꺼번에 들어오면 행마다 다시 그리지 않고
+   잠시 모았다가 한 번만 그립니다. */
+let rtTimer = null;
+function rtRender(){
+  if(rtTimer) clearTimeout(rtTimer);
+  rtTimer = setTimeout(()=>{
+    rtTimer = null;
+    if($("rowModal").classList.contains("hide")) render();
+  }, 250);
+}
+
 function subscribeRealtime(){
   if(rtChannel) return;                          // 연도를 바꿔도 채널은 하나만 유지합니다
   rtChannel = sb.channel("sales-desk")
@@ -1243,7 +1404,7 @@ function subscribeRealtime(){
         ROWS = ROWS.filter(r=>r.id!==row.id);
       }
       clearYearCache();
-      if($("rowModal").classList.contains("hide")) render();
+      rtRender();                                // 여러 건이 몰려도 화면은 한 번만 다시 그립니다
     })
     .on("postgres_changes", { event:"*", schema:"public", table:"app_settings" }, async ()=>{
       await loadSettings(); refreshOptionLists();
@@ -1664,6 +1825,268 @@ function syncMonthPicker(){
    매출목표 대비 실적 — 화면 최상단
    목표/Trend는 설정 탭에서 관리하고, 실적은 매출월 기준 수주 금액입니다.
    ===================================================================== */
+/* =====================================================================
+   ① 상품별 매출목표 — 첨부해 주신 "매출목표" 시트와 같은 구성
+      전년 마감(실적) · 당해 Total · 1~12월
+   ===================================================================== */
+let PREV_ACT = { year:null, map:{} };          // 전년 상품별 실적 캐시
+
+async function renderProductGoals(){
+  const prevY = YEAR - 1;
+  $("pgTitle").textContent = `${YEAR}년 상품별 매출목표`;
+  $("pgEdit").innerHTML = isAdmin()
+    ? `설정 탭 → <b>상품별 매출목표</b>에서 연도별로 입력합니다.`
+    : `설정은 팀장·마스터만 가능합니다.`;
+
+  const pt  = productTargetsOf(YEAR);
+  const act = productActuals(ROWS);
+
+  /* 전년 마감 — 한 번 불러와 캐시합니다.
+     단, 아직 전년 데이터가 없어서 비어 있는 결과는 캐시하지 않습니다.
+     (25년 엑셀을 나중에 올리면 그때 다시 읽어야 하므로) */
+  if(PREV_ACT.year !== prevY || !Object.keys(PREV_ACT.map).length){
+    const prevRows = YEARS.includes(prevY) ? await fetchYearRows(prevY) : [];
+    const map = productActuals(prevRows);
+    if(Object.keys(map).length || PREV_ACT.year !== prevY) PREV_ACT = { year: prevY, map };
+  }
+  const prevAct = PREV_ACT.map;
+
+  if(!hasProductTargets(YEAR)){
+    $("pgTbl").innerHTML = "";
+    $("pgEmpty").classList.remove("hide");
+    $("pgEmpty").innerHTML = `${YEAR}년 상품별 매출목표가 아직 없습니다.`
+      + (isAdmin() ? ` 설정 탭 → <b>상품별 매출목표</b>에서 입력해 주세요.` : ``);
+    $("pgInfo").textContent = "";
+    return;
+  }
+  $("pgEmpty").classList.add("hide");
+
+  const e2 = v => (Number(v)||0) === 0 ? "-" : ((Number(v)||0)/1e8).toFixed(2);
+  const cy = currentYM();
+  const mHead = Array.from({length:12},(_,i)=>{
+    const k = `${YEAR}-${String(i+1).padStart(2,"0")}`;
+    return `<th class="num nos${k===cy?" curcol":""}">${i+1}월</th>`;
+  }).join("");
+
+  /* 전사 목표(기존 설정)를 Total 행으로 씁니다 */
+  const total = targetsOf(YEAR, "goal");
+  const prevTotal = Object.values(prevAct).reduce((s,a)=>s + a.reduce((x,v)=>x+v,0), 0);
+
+  const cell = (v,i,cls="") =>
+    `<td class="num${`${YEAR}-${String(i+1).padStart(2,"0")}`===cy?" curcol":""} ${cls}">${e2(v)}</td>`;
+
+  const line = (r, depth) => {
+    const vals = Array.from({length:12},(_,i)=>pgoalOf(pt, r, i));
+    const has  = vals.some(v=>v !== null);
+    const sum  = vals.reduce((s,v)=>s+(v||0),0);
+    const prev = pactSum(prevAct, r.products && r.products.length ? r.products
+                   : (r.kids||[]).flatMap(k=>k.products), 12);
+    const nm = depth ? `<span style="padding-left:${depth*14}px">${esc(r.name)}</span>` : `<b>${esc(r.name)}</b>`;
+    return `<tr class="${depth?"":"pg-main"}">
+      <td class="dim">${depth?"":esc(r.grp||"")}</td>
+      <td>${nm}</td>
+      <td class="num dim">${e2(prev)}</td>
+      <td class="num" style="font-weight:800;background:#f7f9fc">${has?e2(sum):"-"}</td>
+      ${vals.map((v,i)=>cell(v===null?0:v,i)).join("")}
+      <td class="dim">${r.goal===false?"목표 미설정":""}</td>
+    </tr>`;
+  };
+
+  let hiddenN = 0;
+  const body = PGOAL_ROWS.map(r=>{
+    let html = line(r, 0);
+    if(r.goal === "sum"){
+      const kids = (r.kids||[]).filter(k=>!k.hidden);
+      hiddenN += (r.kids||[]).length - kids.length;
+      html += kids.map(k=>line({ ...k, grp:"", goal:true }, 1)).join("");
+    }
+    return html;
+  }).join("");
+
+  $("pgTbl").innerHTML =
+    `<thead><tr>
+       <th class="nos dim">구분</th><th class="nos">상품</th>
+       <th class="num nos">${prevY}년 마감</th><th class="num nos">${YEAR}년 Total</th>
+       ${mHead}<th class="nos">비고</th>
+     </tr></thead>
+     <tbody>
+       <tr class="pg-total">
+         <td class="dim">전사</td><td><b>광고 Total</b></td>
+         <td class="num dim">${e2(prevTotal)}</td>
+         <td class="num" style="font-weight:800">${e2(total.reduce((s,v)=>s+v,0))}</td>
+         ${total.map((v,i)=>cell(v,i)).join("")}
+         <td class="dim">매출목표 관리 기준</td>
+       </tr>
+       ${body}
+     </tbody>`;
+
+  const sumRows = PGOAL_ROWS.reduce((s,r)=>
+    s + Array.from({length:12},(_,i)=>pgoalOf(pt,r,i)||0).reduce((a,b)=>a+b,0), 0);
+  const tot = total.reduce((s,v)=>s+v,0);
+  const gap = sumRows - tot;
+  $("pgInfo").textContent =
+    `광고 Total ${eok2(tot)} · 상품별 목표 합계 ${eok2(sumRows)}`
+    + (Math.abs(gap) >= 1000000 ? ` (차이 ${gap>=0?"+":"−"}${eok2(Math.abs(gap))})` : " (일치)")
+    + ` · ${prevY}년 마감 ${eok2(prevTotal)}`
+    + (hiddenN ? ` · 신규BM 하위 ${hiddenN}개 항목은 접어 두었습니다 (합계에는 포함)` : "")
+    + ` | 광고 Total 은 설정 탭의 매출목표 기준이라 상품별 합계와 다를 수 있습니다.`;
+}
+
+/* =====================================================================
+   ② 당월 예상실적 — 전월 마감 / 당월 실적 / 추가예상(수기) / 달성율
+   ===================================================================== */
+let FC_DRAFT = null;                            // 편집 중인 추가예상·비고
+
+function fcRows(){
+  const out = [];
+  PGOAL_ROWS.forEach(r=>{
+    if(r.split){
+      r.split.forEach(sp=>out.push({ key:sp.key, grp:r.grp, name:sp.name,
+        products:sp.products, goalRow:null, depth:0 }));
+      out.push({ key:r.key+"_sub", grp:"", name:"실시간 SUB 합계",
+        products:r.products, goalRow:r, depth:0, sub:true, noInput:true });
+    }else if(r.goal === "sum"){
+      out.push({ key:r.key, grp:r.grp, name:r.name,
+        products:(r.kids||[]).flatMap(k=>k.products), goalRow:r, depth:0, sub:true, noInput:true });
+      (r.kids||[]).filter(k=>!k.hidden).forEach(k=>out.push({ key:k.key, grp:"", name:k.name,
+        products:k.products, goalRow:{ ...k, goal:true }, depth:1 }));
+    }else{
+      out.push({ key:r.key, grp:r.grp, name:r.name, products:r.products, goalRow:r, depth:0 });
+    }
+  });
+  return out;
+}
+
+function renderForecast(){
+  const M   = Number(CUR_MONTH.slice(5));
+  const pm  = M > 1 ? M - 1 : 12;
+  const admin = isAdmin();
+  $("fcTitle").textContent = `${YEAR}년 ${M}월 예상실적`;
+  $("btnFcSave").classList.toggle("hide", !admin);
+
+  const pt   = productTargetsOf(YEAR);
+  const act  = productActuals(ROWS);
+  const fc   = FC_DRAFT || forecastOf(CUR_MONTH);
+  const e2   = v => (Number(v)||0) === 0 ? "-" : ((Number(v)||0)/1e8).toFixed(2);
+  const rows = fcRows();
+
+  /* 합계는 화면 행이 아니라 최상위 구분(PGOAL_ROWS) 기준으로 계산해야
+     실시간(ad+·BASIC)처럼 쪼갠 행의 목표가 빠지지 않습니다. */
+  const allProducts = r => (r.products && r.products.length)
+    ? r.products : (r.kids||[]).flatMap(k=>k.products);
+  const addKeysOf = r => r.split ? r.split.map(x=>x.key)
+                       : (r.goal === "sum" ? (r.kids||[]).map(k=>k.key) : [r.key]);
+  const T = PGOAL_ROWS.reduce((t,r)=>{
+    const ps = allProducts(r);
+    t.prev += M > 1 ? pactOf(act, ps, pm-1) : 0;
+    t.cur  += pactOf(act, ps, M-1);
+    t.add  += addKeysOf(r).reduce((s,k)=>s + ((fc[k]||{}).add||0), 0);
+    t.goal += pgoalOf(pt, r, M-1) || 0;
+    return t;
+  }, { prev:0, cur:0, add:0, goal:0 });
+
+  const body = rows.map(r=>{
+    const prev = M > 1 ? pactOf(act, r.products, pm-1) : 0;
+    const cur  = pactOf(act, r.products, M-1);
+    const f    = fc[r.key] || { add:0, note:"" };
+    const add  = r.noInput
+      ? (r.goalRow && r.goalRow.split ? (r.goalRow.split||[]).reduce((s,sp)=>s+((fc[sp.key]||{}).add||0),0)
+         : (r.goalRow && r.goalRow.kids ? (r.goalRow.kids||[]).reduce((s,k)=>s+((fc[k.key]||{}).add||0),0) : 0))
+      : (Number(f.add)||0);
+    const sum  = cur + add;
+    const goal = r.goalRow ? pgoalOf(pt, r.goalRow, M-1) : null;
+    const rate = (goal && goal > 0) ? (sum/goal*100) : null;
+    const diff = sum - prev;
+
+    const nm = r.depth ? `<span style="padding-left:${r.depth*14}px">${esc(r.name)}</span>`
+                       : (r.sub ? `<b>${esc(r.name)}</b>` : esc(r.name));
+    const addCell = (admin && !r.noInput)
+      ? `<td class="num"><input class="fc-in" data-fc="${r.key}" inputmode="decimal" value="${add?(add/1e8).toFixed(2):""}" placeholder="0.00"></td>`
+      : `<td class="num${r.noInput?" dim":""}">${e2(add)}</td>`;
+    const noteCell = (admin && !r.noInput)
+      ? `<td><input class="fc-note" data-note="${r.key}" value="${esc(f.note||"")}" placeholder="메모"></td>`
+      : `<td class="dim">${esc(f.note||"")}</td>`;
+
+    return `<tr class="${r.sub?"fc-sub":""}">
+      <td class="dim">${esc(r.grp||"")}</td>
+      <td>${nm}</td>
+      <td class="num dim">${e2(prev)}</td>
+      <td class="num" style="font-weight:700">${e2(cur)}</td>
+      ${addCell}
+      <td class="num" style="font-weight:800;background:#f7f9fc">${e2(sum)}</td>
+      <td class="num" style="${rate==null?"":(rate>=100?"color:var(--win);font-weight:700":"color:var(--danger);font-weight:700")}">
+        ${rate==null?"-":rate.toFixed(2)+"%"}</td>
+      <td class="num" style="${diff>0?"color:var(--win)":diff<0?"color:var(--danger)":"color:var(--muted)"}">
+        ${diff?((diff>0?"+":"−")+e2(Math.abs(diff))):"-"}</td>
+      ${noteCell}
+    </tr>`;
+  }).join("");
+
+  const tSum = T.cur + T.add, tRate = T.goal ? (tSum/T.goal*100) : null;
+  $("fcTbl").innerHTML =
+    `<thead><tr>
+       <th class="nos dim">구분</th><th class="nos">상품</th>
+       <th class="num nos">${pm}월</th><th class="num nos">${M}월 예상</th>
+       <th class="num nos">추가예상</th><th class="num nos">추가포함 합계</th>
+       <th class="num nos">달성율</th><th class="num nos">전월대비</th><th class="nos">비고</th>
+     </tr></thead>
+     <tbody>
+       <tr class="pg-total">
+         <td class="dim">전사</td><td><b>광고 Total</b></td>
+         <td class="num dim">${e2(T.prev)}</td>
+         <td class="num" style="font-weight:700">${e2(T.cur)}</td>
+         <td class="num dim">${e2(T.add)}</td>
+         <td class="num" style="font-weight:800">${e2(tSum)}</td>
+         <td class="num" style="${tRate==null?"":(tRate>=100?"color:var(--win);font-weight:700":"color:var(--danger);font-weight:700")}">
+           ${tRate==null?"-":tRate.toFixed(2)+"%"}</td>
+         <td class="num" style="${tSum-T.prev>=0?"color:var(--win)":"color:var(--danger)"}">
+           ${(tSum-T.prev>=0?"+":"−")+e2(Math.abs(tSum-T.prev))}</td>
+         <td class="dim">상품 합계</td>
+       </tr>
+       ${body}
+     </tbody>`;
+
+  $("fcInfo").textContent =
+    `${pm}월 마감 ${eok2(T.prev)} → ${M}월 실적 ${eok2(T.cur)} + 추가예상 ${eok2(T.add)} = ${eok2(tSum)}`
+    + (T.goal ? ` · ${M}월 목표 ${eok2(T.goal)} 대비 ${tRate.toFixed(2)}%` : "")
+    + ` | 실적은 매출월 기준 수주입니다.`;
+
+  if(admin) bindForecastInputs();
+}
+
+function bindForecastInputs(){
+  const grab = () => {
+    const d = {};
+    $("fcTbl").querySelectorAll("[data-fc]").forEach(el=>{
+      const k = el.dataset.fc;
+      d[k] = d[k] || { add:0, note:"" };
+      d[k].add = Math.round((parseFloat(String(el.value).replace(/,/g,"")) || 0) * 1e8);
+    });
+    $("fcTbl").querySelectorAll("[data-note]").forEach(el=>{
+      const k = el.dataset.note;
+      d[k] = d[k] || { add:0, note:"" };
+      d[k].note = el.value.trim();
+    });
+    Object.keys(d).forEach(k=>{ if(!d[k].add && !d[k].note) delete d[k]; });
+    return d;
+  };
+  $("fcTbl").querySelectorAll("[data-fc],[data-note]").forEach(el=>{
+    el.oninput  = ()=>{ FC_DRAFT = grab(); };
+    el.onchange = ()=>{ FC_DRAFT = grab(); renderForecast(); };
+  });
+  $("btnFcSave").onclick = async ()=>{
+    const all = Object.assign({}, SETTINGS.forecast || {});
+    all[CUR_MONTH] = grab();
+    $("btnFcSave").disabled = true;
+    try{
+      await saveSetting("forecast", all);
+      FC_DRAFT = null; renderForecast();
+      toast(`${Number(CUR_MONTH.slice(5))}월 추가예상을 저장했습니다.`);
+    }catch(e){ alert("저장하지 못했습니다: " + e.message); }
+    finally{ $("btnFcSave").disabled = false; }
+  };
+}
+
 function renderTargets(){
   const goal  = targetsOf(YEAR, "goal");
   const trend = targetsOf(YEAR, "trend");
@@ -1852,6 +2275,8 @@ function renderCurrent(){
     + tile("win","수주 건수",  comma(win.length)+"건", `${mNum}월 매출월 기준`)
     + kpiMoney("win","수주 금액",  wa, `수주율(금액) ${rate.toFixed(2)}%`);
 
+  renderProductGoals();
+  renderForecast();
   renderTargets();
 
   renderTop10("topProduct", win, "product", "상품");
@@ -2179,6 +2604,7 @@ function renderSettings(){
     : `현재 권한 <b>팀원</b> — 선택 항목은 보기만 가능합니다. 추가·수정이 필요하면 팀장 또는 마스터에게 요청해 주세요.`;
 
   renderTargetEditor();
+  renderProductTargetEditor();
   renderMembers();
 
   $("setGrid").innerHTML = SETTING_DEFS.map(d=>{
@@ -2543,6 +2969,130 @@ function renderMembers(){
     setMember(m.id, { role:r }, `${m.name} 님의 권한을 ${ROLE_LABEL[r]||r}(으)로 변경했습니다.`);
   });
 }
+
+/* =====================================================================
+   상품별 매출목표 관리 — 연도별로 입력 (27년이 되면 연도만 추가하면 됩니다)
+   단위는 화면과 같은 억원, 소수점 2자리까지
+   ===================================================================== */
+let PGT_YEAR = null;
+
+function renderProductTargetEditor(){
+  const admin = isAdmin();
+  const years = [...new Set([
+    ...(YEARS||[]),
+    ...Object.keys(SETTINGS.product_targets||{}).map(Number),
+    YEAR, new Date().getFullYear(), new Date().getFullYear()+1
+  ])].filter(Boolean).sort((a,b)=>a-b);
+  if(!PGT_YEAR || !years.includes(PGT_YEAR)) PGT_YEAR = years.includes(YEAR) ? YEAR : years[years.length-1];
+
+  const pt   = productTargetsOf(PGT_YEAR);
+  const rows = pgoalInputRows();
+  const val  = (k,i) => (pt[k]||[])[i] || 0;
+  const e2   = v => (Number(v)||0) ? ((Number(v)||0)/1e8).toFixed(2) : "";
+
+  const cell = (k,i) => admin
+    ? `<td class="num"><input class="fld pgt" data-k="${k}" data-i="${i}" inputmode="decimal"
+         style="text-align:right;padding:5px 6px;min-width:64px" value="${e2(val(k,i))}" placeholder="0.00"></td>`
+    : `<td class="num">${e2(val(k,i))||"-"}</td>`;
+
+  const body = rows.map(r=>`<tr>
+      <td class="dim">${esc(r.grp||"")}</td>
+      <td>${esc(r.name)}${r.hidden?` <span class="hint" style="margin:0">(화면 접힘)</span>`:``}</td>
+      ${Array.from({length:12},(_,i)=>cell(r.key,i)).join("")}
+      <td class="num pgt-sum" data-k="${r.key}" style="font-weight:800;background:#f7f9fc">
+        ${((Array.from({length:12},(_,i)=>val(r.key,i)).reduce((a,b)=>a+b,0))/1e8).toFixed(2)}</td>
+    </tr>`).join("");
+
+  const grand = rows.reduce((s,r)=>s + Array.from({length:12},(_,i)=>val(r.key,i)).reduce((a,b)=>a+b,0), 0);
+
+  $("pgtCard").innerHTML = `
+    <div class="card-h">
+      <h2>상품별 매출목표 관리</h2>
+      <span class="hint" style="margin:0">단위는 <b>억원</b>(소수점 2자리). <b>현재월 현황</b> 첫 표와 예상실적 달성율이 이 값을 씁니다.</span>
+      <div class="spacer"></div>
+      <label class="lb" style="margin:0 6px 0 0">연도</label>
+      <select id="pgtYear" class="fld" style="width:auto">
+        ${years.map(y=>`<option value="${y}"${y===PGT_YEAR?" selected":""}>${y}년</option>`).join("")}
+      </select>
+      ${admin ? `<button id="pgtCopy" class="btn sm ghost">전년 값 복사</button>
+                 <button id="pgtSave" class="btn primary sm">저장</button>` : ``}
+    </div>
+    <div class="tbl-wrap" style="max-height:none;overflow-x:auto">
+      <table class="grid" id="pgtTbl">
+        <thead><tr><th class="nos dim">구분</th><th class="nos">상품</th>
+          ${Array.from({length:12},(_,i)=>`<th class="num nos">${i+1}월</th>`).join("")}
+          <th class="num nos">연간</th></tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr>
+          <td colspan="2" class="dim">상품 합계</td>
+          ${Array.from({length:12},(_,i)=>`<td class="num pgt-msum" data-i="${i}" style="font-weight:700">
+            ${(rows.reduce((s,r)=>s+val(r.key,i),0)/1e8).toFixed(2)}</td>`).join("")}
+          <td class="num" id="pgtGrand" style="font-weight:800">${(grand/1e8).toFixed(2)}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="tbl-foot"><span class="hint" style="margin:0">${admin
+      ? `신규BM 은 하위 ${(PGOAL_ROWS.find(r=>r.goal==="sum")||{kids:[]}).kids.length}개 상품의 합으로 자동 계산됩니다. \u0028화면 접힘\u0029 항목도 합계에는 들어가므로 목표를 그대로 입력하시면 됩니다. 지역광고는 실시간에 포함됩니다.`
+      : "상품별 매출목표는 팀장·마스터만 수정할 수 있습니다."}</span></div>`;
+
+  $("pgtYear").onchange = ()=>{ PGT_YEAR = Number($("pgtYear").value); renderProductTargetEditor(); };
+  if(!admin) return;
+
+  const readAll = ()=>{
+    const out = {};
+    rows.forEach(r=>{
+      const arr = Array.from({length:12},(_,i)=>{
+        const el = $("pgtCard").querySelector(`input.pgt[data-k="${r.key}"][data-i="${i}"]`);
+        const v = el ? parseFloat(String(el.value).replace(/,/g,"")) : 0;
+        return Math.round((isFinite(v)?v:0) * 1e8);
+      });
+      if(arr.some(v=>v)) out[r.key] = arr;
+    });
+    return out;
+  };
+  const recalc = ()=>{
+    const cur = readAll();
+    const at = (k,i) => (cur[k]||[])[i] || 0;
+    let g = 0;
+    rows.forEach(r=>{
+      const s = Array.from({length:12},(_,i)=>at(r.key,i)).reduce((a,b)=>a+b,0);
+      g += s;
+      const el = $("pgtCard").querySelector(`.pgt-sum[data-k="${r.key}"]`);
+      if(el) el.textContent = (s/1e8).toFixed(2);
+    });
+    Array.from({length:12}).forEach((_,i)=>{
+      const el = $("pgtCard").querySelector(`.pgt-msum[data-i="${i}"]`);
+      if(el) el.textContent = (rows.reduce((s,r)=>s+at(r.key,i),0)/1e8).toFixed(2);
+    });
+    $("pgtGrand").textContent = (g/1e8).toFixed(2);
+  };
+  $("pgtCard").querySelectorAll("input.pgt").forEach(el=>el.addEventListener("input", recalc));
+
+  $("pgtCopy").onclick = ()=>{
+    const prev = productTargetsOf(PGT_YEAR - 1);
+    if(!Object.keys(prev).length){ toast(`${PGT_YEAR-1}년 상품별 목표가 없습니다.`); return; }
+    if(!confirm(`${PGT_YEAR-1}년 값을 ${PGT_YEAR}년으로 복사할까요?\n화면의 입력값이 덮어써집니다(저장은 따로 눌러야 합니다).`)) return;
+    rows.forEach(r=>Array.from({length:12}).forEach((_,i)=>{
+      const el = $("pgtCard").querySelector(`input.pgt[data-k="${r.key}"][data-i="${i}"]`);
+      if(el){ const v = (prev[r.key]||[])[i] || 0; el.value = v ? (v/1e8).toFixed(2) : ""; }
+    }));
+    recalc();
+    toast(`${PGT_YEAR-1}년 값을 불러왔습니다. 확인 후 저장해 주세요.`);
+  };
+
+  $("pgtSave").onclick = async ()=>{
+    const all = Object.assign({}, SETTINGS.product_targets || {});
+    all[String(PGT_YEAR)] = readAll();
+    $("pgtSave").disabled = true;
+    try{
+      await saveSetting("product_targets", all);
+      toast(`${PGT_YEAR}년 상품별 매출목표를 저장했습니다.`);
+      renderProductTargetEditor();
+      if(VIEW === "dash") render();
+    }catch(e){ alert("저장하지 못했습니다: " + e.message); }
+    finally{ $("pgtSave").disabled = false; }
+  };
+}
 </script>
 <script>
 /* =====================================================================
@@ -2570,7 +3120,10 @@ async function fetchYearRows(y){
   YEAR_CACHE[y] = out;
   return out;
 }
-function clearYearCache(){ for(const k in YEAR_CACHE) delete YEAR_CACHE[k]; }
+function clearYearCache(){
+  for(const k in YEAR_CACHE) delete YEAR_CACHE[k];
+  if(typeof PREV_ACT !== "undefined") PREV_ACT = { year:null, map:{} };   // 전년 마감도 다시 읽습니다
+}
 
 function syncCompareControls(){
   const list = YEARS.slice();
