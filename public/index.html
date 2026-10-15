@@ -126,6 +126,34 @@ table.grid th.clip{max-width:150px}
 .modal-bg{position:fixed;inset:0;background:rgba(18,24,38,.42);z-index:100;display:flex;
   align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto}
 .modal{background:#fff;border-radius:14px;width:100%;max-width:720px;box-shadow:0 18px 50px rgba(15,25,50,.22)}
+
+/* ---------- 등록·수정 창 — 바닥 화면을 보면서 입력할 수 있는 "떠 있는 창" ----------
+   어둡게 덮지 않고, 뒤 화면을 스크롤·클릭·탭 이동할 수 있습니다.
+   제목줄을 끌어 옮기고, [접기]로 제목줄만 남길 수 있습니다. */
+#rowModal.modal-bg{background:transparent;pointer-events:none;padding:0;overflow:visible;display:block;z-index:90}
+#rowModal .modal{pointer-events:auto;position:fixed;top:76px;right:24px;
+  width:min(720px, calc(100vw - 32px));max-height:calc(100vh - 92px);display:flex;flex-direction:column;
+  box-shadow:0 24px 64px rgba(15,25,50,.30),0 0 0 1px rgba(15,25,50,.10)}
+#rowModal .modal-h{cursor:move;user-select:none;-webkit-user-select:none;touch-action:none;
+  background:#f7f9fc;border-radius:14px 14px 0 0;gap:8px}
+#rowModal .modal-h .grip{color:var(--muted);font-size:13px;letter-spacing:-2px;margin-right:2px}
+#rowModal .modal-h .drag-hint{font-size:11px;color:var(--muted);font-weight:500}
+#rowModal .modal-h .x{margin-left:0}
+#rowModal .modal-h .rm-ctl{margin-left:auto;display:flex;gap:4px}
+#rowModal .modal-b{overflow:auto;min-height:0}
+#rowModal.min .modal-b,#rowModal.min .modal-f{display:none}
+#rowModal.min .modal{width:min(380px, calc(100vw - 32px))}
+#rowModal.min .modal-h{border-radius:14px;border-bottom:0}
+#rowModal.min .modal-h .drag-hint{display:none}
+#rowModal .modal-h h3{white-space:nowrap}
+#rowModal .modal-h .min-sub{display:none;font-size:11.5px;color:var(--muted);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;min-width:0}
+#rowModal.min .modal-h .min-sub{display:block}
+#rowModal.dragging .modal{opacity:.94;transition:none}
+@media (max-width:640px){
+  #rowModal .modal{top:auto;bottom:8px;right:8px;max-height:72vh}
+  #rowModal .modal-h .drag-hint{display:none}
+}
 .modal-h{padding:15px 20px;border-bottom:1px solid var(--line2);display:flex;align-items:center}
 .modal-h h3{margin:0;font-size:15.5px}
 .modal-h .x{margin-left:auto}
@@ -730,7 +758,16 @@ table.grid tr.tot td.dim{background:#f7f9fc}
 <!-- ================= 등록/수정 모달 ================= -->
 <div id="rowModal" class="modal-bg hide">
   <div class="modal">
-    <div class="modal-h"><h3 id="rmTitle">신규 등록</h3><button class="btn ghost sm x" data-close="rowModal">✕</button></div>
+    <div class="modal-h" id="rmHead">
+      <span class="grip" aria-hidden="true">⋮⋮</span>
+      <h3 id="rmTitle">신규 등록</h3>
+      <span class="drag-hint">제목줄을 끌어 옮길 수 있어요 · 뒤 화면도 그대로 쓸 수 있어요</span>
+      <span class="min-sub" id="rmMinSub"></span>
+      <div class="rm-ctl">
+        <button class="btn ghost sm" id="rmMin" title="제목줄만 남기고 접기">접기</button>
+        <button class="btn ghost sm x" data-close="rowModal" title="닫기">✕</button>
+      </div>
+    </div>
     <div class="modal-b">
       <div id="rmCopyNote" class="copy-note hide"></div>
       <div class="frm">
@@ -1414,7 +1451,7 @@ function rtRender(){
   if(rtTimer) clearTimeout(rtTimer);
   rtTimer = setTimeout(()=>{
     rtTimer = null;
-    if($("rowModal").classList.contains("hide")) render();
+    render();                                    // 등록 창이 떠 있어도 뒤 화면은 갱신 (입력값은 건드리지 않음)
   }, 250);
 }
 
@@ -1458,13 +1495,16 @@ function refreshOptionLists(){
   fillSelect($("fRevMonth"),  rm.map(monthLabel), "전체");
   fillSelect($("fPropMonth"), pm.map(monthLabel), "전체");
 
-  /* 신규 등록 폼 — 선택 항목은 설정 탭 목록, 자유 입력은 datalist 추천만 */
+  /* 신규 등록 폼 — 선택 항목은 설정 탭 목록, 자유 입력은 datalist 추천만
+     (등록 창이 떠 있는 동안 연도 탭을 바꿔도 고른 값이 풀리지 않게 보존) */
+  const keepSel = ["iChannel","iRep","iProduct","iIndustry","iAdded","iPromo"].map(id=>[id, $(id).value]);
   fillSelect($("iChannel"),  SETTINGS.channel);
   fillSelect($("iRep"),      SETTINGS.rep,        "(없음)");
   fillSelect($("iProduct"),  SETTINGS.product);
   fillSelect($("iIndustry"), SETTINGS.industry,   "(없음)");
   fillSelect($("iAdded"),    optionsFor("added_value"), "없음");
   fillSelect($("iPromo"),    optionsFor("promotion"),   "없음");
+  if(typeof rowPanelOpen === "function" && rowPanelOpen()) keepSel.forEach(([id,v])=>setSelect($(id), v));
   const dl = (id, key) => $(id).innerHTML =
     [...new Set(ROWS.map(r=>r[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ko"))
       .map(v=>`<option value="${esc(v)}">`).join("");
@@ -1630,6 +1670,9 @@ function setSelect(el, val){
  * (제안 → 수주로 이어지는 입력이 잦아, 제안 건을 복사하면 제안/수주만 수주로 미리 바꿔 둡니다)
  */
 function openRow(row, copy){
+  /* 이미 작성 중인 창이 있으면 덮어쓰기 전에 확인 */
+  if(rowPanelOpen() && rowDirty()
+     && !confirm("등록 창에 작성 중인 내용이 있습니다.\n새 내용으로 바꿀까요? (작성 중인 내용은 사라집니다)")) return;
   copy = !!copy && !!row;
   EDIT_ID = (row && !copy) ? row.id : null;
   $("rmTitle").textContent = copy ? "복사해서 등록" : (row ? "데이터 수정" : "신규 등록");
@@ -1670,7 +1713,88 @@ function openRow(row, copy){
   $("iNote").value       = row?.note || "";
   syncProposeMonth();
   syncMonthHint();
-  $("rowModal").classList.remove("hide");
+  $("rowModal").classList.remove("hide", "min");
+  $("rmMin").textContent = "접기";
+  placeRowPanel();
+  ROW_SNAP = rowFormSnap();
+}
+
+/* ===================== 떠 있는 등록 창 ===================== */
+let ROW_SNAP = "";
+const ROW_FIELDS = ["iDate","iStage","iExecMonth","iRevMonth","iAmount","iChannel","iRep","iAgency",
+                    "iProduct","iIndustry","iAdvertiser","iBrand","iBasic","iNote","iAdded","iPromo"];
+function rowPanelOpen(){ return !$("rowModal").classList.contains("hide"); }
+function rowFormSnap(){ return ROW_FIELDS.map(id=>($(id)||{}).value||"").join("\u0001"); }
+function rowDirty(){ return rowPanelOpen() && rowFormSnap() !== ROW_SNAP; }
+
+/** 닫기 — 작성 중이면 한 번 확인 */
+function closeRowPanel(force){
+  if(!force && rowDirty() && !confirm("작성 중인 내용이 있습니다. 저장하지 않고 닫을까요?")) return false;
+  $("rowModal").classList.add("hide");
+  return true;
+}
+
+/** 지난번 옮겨 둔 자리로 (화면 밖이면 기본 자리) */
+function placeRowPanel(){
+  const box = $("rowModal").querySelector(".modal");
+  box.style.left = box.style.top = box.style.right = box.style.bottom = "";
+  if(window.innerWidth <= 640) return;
+  let pos = null;
+  try{ pos = JSON.parse(localStorage.getItem("rowPanelPos") || "null"); }catch(e){}
+  if(!pos) return;
+  const w = box.offsetWidth || 720, h = 60;
+  const left = Math.min(Math.max(8, pos.left), window.innerWidth - Math.min(w, 200));
+  const top  = Math.min(Math.max(8, pos.top),  window.innerHeight - h);
+  box.style.left = left + "px"; box.style.top = top + "px"; box.style.right = "auto";
+}
+
+function bindRowPanel(){
+  const wrap = $("rowModal"), box = wrap.querySelector(".modal"), head = $("rmHead");
+
+  /* 제목줄 끌어서 옮기기 (마우스·터치 공통) */
+  let drag = null;
+  head.addEventListener("pointerdown", e=>{
+    if(e.target.closest("button") || window.innerWidth <= 640) return;
+    const r = box.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    wrap.classList.add("dragging");
+    head.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  head.addEventListener("pointermove", e=>{
+    if(!drag) return;
+    const w = box.offsetWidth;
+    const left = Math.min(Math.max(8 - w + 120, e.clientX - drag.dx), window.innerWidth - 120);
+    const top  = Math.min(Math.max(8, e.clientY - drag.dy), window.innerHeight - 48);
+    box.style.left = left + "px"; box.style.top = top + "px"; box.style.right = "auto";
+  });
+  const end = e=>{
+    if(!drag) return;
+    drag = null; wrap.classList.remove("dragging");
+    try{ head.releasePointerCapture(e.pointerId); }catch(_){}
+    const r = box.getBoundingClientRect();
+    try{ localStorage.setItem("rowPanelPos", JSON.stringify({ left: Math.round(r.left), top: Math.round(r.top) })); }catch(_){}
+  };
+  head.addEventListener("pointerup", end);
+  head.addEventListener("pointercancel", end);
+  /* 제목줄 더블클릭 → 기본 자리로 */
+  head.addEventListener("dblclick", e=>{
+    if(e.target.closest("button")) return;
+    try{ localStorage.removeItem("rowPanelPos"); }catch(_){}
+    placeRowPanel();
+  });
+
+  /* 접기 / 펼치기 */
+  $("rmMin").onclick = ()=>{
+    const min = wrap.classList.toggle("min");
+    $("rmMin").textContent = min ? "펼치기" : "접기";
+    /* 접었을 때 무엇을 쓰던 중인지 한 줄로 */
+    const adv = $("iAdvertiser").value.trim(), amt = $("iAmount").value.trim();
+    $("rmMinSub").textContent = adv ? `작성 중 · ${adv}${amt ? " · " + amt + "원" : ""}` : "";
+  };
+
+  /* 창 크기가 바뀌어 화면 밖으로 나가면 다시 안으로 */
+  window.addEventListener("resize", ()=>{ if(rowPanelOpen()) placeRowPanel(); });
 }
 function syncProposeMonth(){
   const d = $("iDate").value;
@@ -1730,7 +1854,7 @@ async function saveRow(){
     }
     const y = Number((rec.revenue_month||"").slice(0,4));
     clearYearCache();
-    $("rowModal").classList.add("hide");
+    closeRowPanel(true);
     if(y && y!==YEAR){ toast(`매출월이 ${y}년이라 ${String(y).slice(2)}년 탭에 저장되었습니다.`); await loadYear(y); }
     else await loadYear(YEAR);
   }catch(e){
@@ -1746,7 +1870,7 @@ async function deleteRow(){
   const { error } = await sb.from("sales_rows").delete().eq("id", EDIT_ID);
   if(error){ alert(error.message); return; }
   clearYearCache();
-  $("rowModal").classList.add("hide");
+  closeRowPanel(true);
   toast("삭제했습니다.");
   await loadYear(YEAR);
 }
@@ -3954,11 +4078,14 @@ function bindUI(){
     };
   });
   document.querySelectorAll("[data-close]").forEach(b=>{
-    b.onclick = ()=> $(b.dataset.close).classList.add("hide");
+    b.onclick = ()=> b.dataset.close === "rowModal" ? closeRowPanel() : $(b.dataset.close).classList.add("hide");
   });
+  /* 바깥 클릭으로 닫기 — 등록 창은 제외 (뒤 화면을 보면서 입력할 수 있도록) */
   document.querySelectorAll(".modal-bg").forEach(m=>{
+    if(m.id === "rowModal") return;
     m.addEventListener("mousedown", e=>{ if(e.target===m) m.classList.add("hide"); });
   });
+  bindRowPanel();
 
   let t = null;
   $("fQ").addEventListener("input", ()=>{ clearTimeout(t); t = setTimeout(()=>{ PAGE=1; renderList(); }, 200); });
@@ -4092,7 +4219,11 @@ function bindUI(){
   drop.addEventListener("drop", e=>{ const f = e.dataTransfer.files[0]; if(f) parseFile(f); });
 
   document.addEventListener("keydown", e=>{
-    if(e.key==="Escape") document.querySelectorAll(".modal-bg").forEach(m=>m.classList.add("hide"));
+    if(e.key!=="Escape") return;
+    /* 위에 떠 있는 상세·업로드 창부터 닫고, 등록 창은 작성 중이면 확인 */
+    const others = [...document.querySelectorAll(".modal-bg:not(.hide)")].filter(m=>m.id!=="rowModal");
+    if(others.length){ others.forEach(m=>m.classList.add("hide")); return; }
+    if(rowPanelOpen()) closeRowPanel();
   });
 }
 </script>
