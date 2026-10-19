@@ -118,8 +118,36 @@ table.grid th.clip{max-width:150px}
 .empty{padding:40px 16px;text-align:center;color:var(--muted)}
 
 /* ---------- 검색/필터 ---------- */
+/* 예시(placeholder)는 실제 입력값과 헷갈리지 않게 연하고 가늘게 */
+input::placeholder,textarea::placeholder{color:#bcc4cf;font-weight:400;font-style:normal;opacity:1}
 .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .filters .wide{grid-column:span 2}
+
+/* ---------- 다중 선택 필터 (체크박스) ---------- */
+.ms{position:relative}
+.ms-btn{display:flex;align-items:center;gap:6px;text-align:left;cursor:pointer;background:#fff;width:100%}
+.ms-btn .ms-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-btn .ms-caret{color:var(--muted);font-size:10px}
+.ms.on .ms-btn{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);font-weight:700}
+.ms-badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--brand);
+  color:#fff;font-size:10.5px;font-weight:800;text-align:center;line-height:17px}
+.ms-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:60;min-width:230px;width:max-content;max-width:320px;
+  background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 36px rgba(15,25,50,.18);padding:8px}
+.ms-pop.right{left:auto;right:0}
+.ms-q{width:100%;padding:6px 9px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;margin-bottom:6px}
+.ms-acts{display:flex;gap:6px;margin-bottom:6px}
+.ms-acts button{flex:1;font-size:11.5px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:#f7f9fc;color:var(--text)}
+.ms-acts button:hover{border-color:var(--brand);color:var(--brand)}
+.ms-list{max-height:260px;overflow:auto;display:flex;flex-direction:column}
+.ms-list label{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.ms-list label:hover{background:#f3f6fb}
+.ms-list label .cnt{margin-left:auto;padding-left:12px;color:var(--muted);font-size:11px}
+.ms-list label.empty-opt{color:var(--muted)}
+.ms-list input{margin:0;accent-color:var(--brand)}
+.ms-none{padding:8px 6px;color:var(--muted);font-size:12px}
+.ms-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line2);
+  margin-top:6px;padding-top:6px;font-size:11.5px;color:var(--muted)}
+.ms-foot button{font-size:11.5px;padding:4px 12px}
 @media(max-width:700px){.filters .wide{grid-column:span 1}}
 
 /* ---------- 모달 ---------- */
@@ -684,15 +712,15 @@ table.grid tr.tot td.dim{background:#f7f9fc}
             <label class="lb">통합 검색</label>
             <input id="fQ" class="fld" placeholder="광고주 · 브랜드 · 대행사 · 미디어렙 · 비고 …">
           </div>
-          <div><label class="lb">제안/수주</label><select id="fStage" class="fld"></select></div>
-          <div><label class="lb">매출월</label><select id="fRevMonth" class="fld"></select></div>
-          <div><label class="lb">제안월</label><select id="fPropMonth" class="fld"></select></div>
-          <div><label class="lb">채널</label><select id="fChannel" class="fld"></select></div>
-          <div><label class="lb">미디어렙</label><select id="fRep" class="fld"></select></div>
-          <div><label class="lb">대행사</label><select id="fAgency" class="fld"></select></div>
-          <div><label class="lb">상품</label><select id="fProduct" class="fld"></select></div>
-          <div><label class="lb">업종</label><select id="fIndustry" class="fld"></select></div>
-          <div><label class="lb">등록자</label><select id="fOwner" class="fld"></select></div>
+          <div><label class="lb">제안/수주</label><div id="fStage" class="ms"></div></div>
+          <div><label class="lb">매출월</label><div id="fRevMonth" class="ms"></div></div>
+          <div><label class="lb">제안월</label><div id="fPropMonth" class="ms"></div></div>
+          <div><label class="lb">채널</label><div id="fChannel" class="ms"></div></div>
+          <div><label class="lb">미디어렙</label><div id="fRep" class="ms"></div></div>
+          <div><label class="lb">대행사</label><div id="fAgency" class="ms"></div></div>
+          <div><label class="lb">상품</label><div id="fProduct" class="ms"></div></div>
+          <div><label class="lb">업종</label><div id="fIndustry" class="ms"></div></div>
+          <div><label class="lb">등록자</label><div id="fOwner" class="ms"></div></div>
           <div><label class="lb">최근 변경</label><select id="fChanged" class="fld">
             <option value="">전체</option>
             <option value="new">신규 등록건만</option>
@@ -779,7 +807,7 @@ table.grid tr.tot td.dim{background:#f7f9fc}
           <div class="fhint">고르면 매출월도 같이 바뀝니다</div></div>
         <div><label class="lb req">매출월</label><input id="iRevMonth" class="fld" type="month">
           <div class="fhint">다르면 직접 고치세요</div></div>
-        <div><label class="lb req">금액(원)</label><input id="iAmount" class="fld" inputmode="numeric" placeholder="10,000,000" style="text-align:right;font-weight:700"></div>
+        <div><label class="lb req">금액(원)</label><input id="iAmount" class="fld" inputmode="numeric" placeholder="예) 10,000,000" style="text-align:right;font-weight:700"></div>
         <div id="monthHint" class="month-hint hide" style="grid-column:1/-1"></div>
 
         <div><label class="lb req">채널</label><select id="iChannel" class="fld"></select></div>
@@ -791,9 +819,9 @@ table.grid tr.tot td.dim{background:#f7f9fc}
         <div><label class="lb req">광고주</label><input id="iAdvertiser" class="fld" list="dlAdvertiser" placeholder="직접 입력"><datalist id="dlAdvertiser"></datalist></div>
 
         <div><label class="lb">브랜드</label><input id="iBrand" class="fld" list="dlBrand" placeholder="직접 입력"><datalist id="dlBrand"></datalist></div>
-        <div class="c2"><label class="lb">Basic 총예산</label><input id="iBasic" class="fld" placeholder="예: OK / 40,000,000 / 연간 계약 6,000만원"></div>
+        <div class="c2"><label class="lb">Basic 총예산</label><input id="iBasic" class="fld" placeholder="예) OK / 40,000,000 / 연간 계약 6,000만원"></div>
 
-        <div class="c3"><label class="lb">비고</label><input id="iNote" class="fld" placeholder="예: 플랫폼수수료, 추정매출"></div>
+        <div class="c3"><label class="lb">비고</label><input id="iNote" class="fld" placeholder="예) 플랫폼수수료, 추정매출"></div>
         <div><label class="lb">Added Value 활용</label><select id="iAdded" class="fld"></select></div>
         <div><label class="lb">프로모션 적용여부</label><select id="iPromo" class="fld"></select></div>
         <div style="display:flex;align-items:flex-end"><span class="hint" style="margin:0 0 9px">선택 항목은 <b>설정</b> 탭에서 추가·수정할 수 있습니다.</span></div>
@@ -1078,6 +1106,7 @@ function toast(msg){
   setTimeout(()=>el.remove(), 2600);
 }
 function fillSelect(el, list, firstLabel, firstValue){
+  if(el && el.classList && el.classList.contains("ms")) return msSetOptions(el, list);
   const cur = el.value;
   el.innerHTML = (firstLabel!==undefined ? `<option value="${firstValue===undefined?"":esc(firstValue)}">${esc(firstLabel)}</option>` : "")
     + list.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
@@ -1482,6 +1511,124 @@ function subscribeRealtime(){
 /* ===================== 필터 ===================== */
 const FILTER_IDS = ["fQ","fStage","fRevMonth","fPropMonth","fChannel","fRep","fAgency","fProduct","fIndustry","fOwner","fChanged"];
 
+/* ===================== 다중 선택 필터 =====================
+   체크박스로 여러 값을 고릅니다. 아무것도 고르지 않으면 "전체".
+   각 칸의 .value 는 고른 값이 있으면 비어 있지 않은 문자열이라
+   기존 코드(초기화 · 필터 적용 여부 확인)가 그대로 동작합니다. */
+const MS_EMPTY = "__EMPTY__";                     // "(미입력)" 선택지
+const MS_FIELD = {
+  fStage:     r=>r.stage||"",
+  fRevMonth:  r=>r.revenue_month ? monthLabel(r.revenue_month) : "",
+  fPropMonth: r=>r.propose_month ? monthLabel(r.propose_month) : "",
+  fChannel:   r=>r.channel||"",
+  fRep:       r=>r.rep||"",
+  fAgency:    r=>r.agency||"",
+  fProduct:   r=>r.product||"",
+  fIndustry:  r=>r.industry||"",
+  fOwner:     r=>r.created_name||""
+};
+
+function msInit(el){
+  if(el._ms) return;
+  el._ms = { opts:[], sel:new Set() };
+  el.innerHTML =
+      `<button type="button" class="fld ms-btn"><span class="ms-txt">전체</span><span class="ms-caret">▾</span></button>`
+    + `<div class="ms-pop hide">`
+    +   `<input class="ms-q" placeholder="검색">`
+    +   `<div class="ms-acts"><button type="button" data-a="all">전체 선택</button><button type="button" data-a="none">선택 해제</button></div>`
+    +   `<div class="ms-list"></div>`
+    +   `<div class="ms-foot"><span class="ms-sum"></span><button type="button" class="btn sm primary" data-a="close">확인</button></div>`
+    + `</div>`;
+  Object.defineProperty(el, "value", {
+    configurable:true,
+    get(){ return [...el._ms.sel].join("|"); },
+    set(v){ el._ms.sel = new Set(v ? String(v).split("|") : []); msRender(el); }
+  });
+  const btn = el.querySelector(".ms-btn"), pop = el.querySelector(".ms-pop"), q = el.querySelector(".ms-q");
+  btn.onclick = ()=>{ pop.classList.contains("hide") ? msOpen(el) : msClose(el); };
+  q.oninput = ()=> msDrawList(el);
+  pop.addEventListener("click", e=>{
+    const a = e.target.closest("[data-a]"); if(!a) return;
+    if(a.dataset.a === "close"){ msClose(el); return; }
+    const vis = msVisible(el);                    // 검색 중이면 보이는 것만
+    if(a.dataset.a === "all")  vis.forEach(v=>el._ms.sel.add(v));
+    if(a.dataset.a === "none") vis.forEach(v=>el._ms.sel.delete(v));
+    msChanged(el);
+  });
+  pop.addEventListener("change", e=>{
+    e.stopPropagation();                          // 상자 안의 변경은 msChanged 로 한 번만 알림
+    const cb = e.target; if(!cb.matches("input[type=checkbox]")) return;
+    cb.checked ? el._ms.sel.add(cb.value) : el._ms.sel.delete(cb.value);
+    msChanged(el);
+  });
+}
+function msChanged(el){
+  msRender(el); msDrawList(el);
+  el.dispatchEvent(new Event("change"));          // 기존 필터 이벤트(목록 다시 그리기) 그대로 사용
+}
+/** 선택지 갱신 — 연도가 바뀌어 없어진 값은 선택에서 뺍니다 */
+function msSetOptions(el, list){
+  msInit(el);
+  el._ms.opts = [...list];
+  const acc = MS_FIELD[el.id];
+  const hasEmpty = acc && (typeof ROWS !== "undefined") && ROWS.some(r=>!acc(r));
+  if(hasEmpty) el._ms.opts.push(MS_EMPTY);
+  el._ms.sel = new Set([...el._ms.sel].filter(v=>el._ms.opts.includes(v)));
+  msRender(el);
+  if(!el.querySelector(".ms-pop").classList.contains("hide")) msDrawList(el);
+}
+const msLabel = v => v === MS_EMPTY ? "(미입력)" : v;
+function msRender(el){
+  if(!el._ms) return;
+  const sel = [...el._ms.sel], n = sel.length, all = el._ms.opts.length;
+  const txt = el.querySelector(".ms-txt");
+  el.classList.toggle("on", n > 0);
+  if(!n) txt.textContent = "전체";
+  else if(n === 1) txt.textContent = msLabel(sel[0]);
+  else txt.innerHTML = `${esc(msLabel(sel[0]))} 외 <span class="ms-badge">${n-1}</span>`;
+  el.title = n ? sel.map(msLabel).join(", ") : "";
+  const sum = el.querySelector(".ms-sum");
+  if(sum) sum.textContent = n ? `${n}개 선택${n===all?" (전부)":""}` : "선택 없음 = 전체";
+}
+function msVisible(el){
+  const q = el.querySelector(".ms-q").value.trim().toLowerCase();
+  return el._ms.opts.filter(v=>!q || msLabel(v).toLowerCase().includes(q));
+}
+function msDrawList(el){
+  const acc = MS_FIELD[el.id], cnt = {};
+  if(acc) ROWS.forEach(r=>{ const k = acc(r) || MS_EMPTY; cnt[k] = (cnt[k]||0) + 1; });
+  const vis = msVisible(el);
+  el.querySelector(".ms-list").innerHTML = vis.length ? vis.map(v=>
+    `<label class="${v===MS_EMPTY?"empty-opt":""}"><input type="checkbox" value="${esc(v)}"${el._ms.sel.has(v)?" checked":""}>`
+    + `<span>${esc(msLabel(v))}</span><span class="cnt">${comma(cnt[v]||0)}</span></label>`).join("")
+    : `<div class="ms-none">일치하는 항목이 없습니다.</div>`;
+}
+function msOpen(el){
+  document.querySelectorAll(".ms").forEach(o=>{ if(o!==el) msClose(o); });
+  const pop = el.querySelector(".ms-pop"), q = el.querySelector(".ms-q");
+  q.value = "";
+  q.style.display = el._ms.opts.length > 8 ? "" : "none";   // 항목이 많을 때만 검색칸
+  msDrawList(el); msRender(el);
+  pop.classList.remove("hide");
+  const r = el.getBoundingClientRect();           // 화면 오른쪽 끝이면 오른쪽 정렬
+  pop.classList.toggle("right", r.left + 320 > window.innerWidth);
+  if(q.style.display !== "none") q.focus();
+}
+function msClose(el){ const p = el.querySelector(".ms-pop"); if(p) p.classList.add("hide"); }
+/** filtered() 에서 쓰는 선택 집합 (비어 있으면 전체) */
+function msSet(id){ const el = $(id); return el && el._ms ? el._ms.sel : new Set(); }
+/* 바깥 클릭 · ESC 로 닫기 */
+document.addEventListener("mousedown", e=>{
+  document.querySelectorAll(".ms").forEach(el=>{ if(!el.contains(e.target)) msClose(el); });
+});
+document.addEventListener("keydown", e=>{
+  if(e.key !== "Escape") return;
+  const open = [...document.querySelectorAll(".ms .ms-pop:not(.hide)")];
+  if(!open.length) return;
+  open.forEach(p=>p.classList.add("hide"));
+  e.stopPropagation();                            // ESC 는 목록만 닫고 다른 창은 건드리지 않음
+}, true);
+
 function refreshOptionLists(){
   fillSelect($("fStage"),    ["제안","수주"],       "전체");
   fillSelect($("fChannel"),  optionsFor("channel"), "전체");
@@ -1520,11 +1667,9 @@ function refreshOptionLists(){
 
 function filtered(){
   const q  = $("fQ").value.trim().toLowerCase();
-  const st = $("fStage").value, ch = $("fChannel").value, rp = $("fRep").value,
-        ag = $("fAgency").value, pr = $("fProduct").value, ind = $("fIndustry").value,
-        ow = $("fOwner").value,
-        rm = $("fRevMonth").value, pm = $("fPropMonth").value,
-        cg = $("fChanged").value;
+  const cg = $("fChanged").value;
+  /* 다중 선택 필터 — 고른 값이 있는 칸만 적용 */
+  const MS = Object.keys(MS_FIELD).map(id=>[MS_FIELD[id], msSet(id)]).filter(([,set])=>set.size);
   let out = ROWS.filter(r=>{
     if(cg){
       const c = changeState(r);
@@ -1534,15 +1679,7 @@ function filtered(){
       if(cg === "7"  && c.d > 7)  return false;
       if(cg === "30" && c.d > 30) return false;
     }
-    if(st && r.stage!==st) return false;
-    if(ch && r.channel!==ch) return false;
-    if(rp && r.rep!==rp) return false;
-    if(ag && r.agency!==ag) return false;
-    if(pr && r.product!==pr) return false;
-    if(ind && r.industry!==ind) return false;
-    if(ow && r.created_name!==ow) return false;
-    if(rm && monthLabel(r.revenue_month)!==rm) return false;
-    if(pm && monthLabel(r.propose_month)!==pm) return false;
+    for(const [acc, set] of MS){ if(!set.has(acc(r) || MS_EMPTY)) return false; }
     if(q){
       const hay = [r.advertiser,r.brand,r.agency,r.rep,r.channel,r.product,r.industry,
                    r.note,r.basic_budget,r.added_value,r.promotion,r.created_name,r.updated_name,
