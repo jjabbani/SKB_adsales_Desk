@@ -333,6 +333,10 @@ table.mon-list tfoot td{background:#f7f9fc;border-top:1px solid var(--line)}
 .mon-cell .v{font-size:16px;font-weight:800;margin-top:2px}
 .mon-cell .s{font-size:11px;color:var(--muted)}
 .mon-sec{font-size:11.5px;font-weight:800;color:var(--brand);margin:10px 0 2px}
+.mon-total{padding:4px 16px 14px}
+.mon-total .mon-cell.key{border-color:var(--brand);background:var(--brand-soft)}
+.mon-total .basis{font-size:11.5px;color:var(--muted);margin:-4px 0 4px}
+.mon-total .basis b{color:var(--text)}
 @media(max-width:1100px){
   .mon-head{display:none}
   .mon-row{grid-template-columns:1fr auto auto;row-gap:2px}
@@ -606,14 +610,24 @@ table.grid tr.tot td.dim{background:#f7f9fc}
 
   <!-- ---------- Monthly (미디어렙사별) ---------- -->
   <section id="viewMonthly" class="hide">
+    <!-- 전체 광고현황 — 렙사 상세와 같은 양식 (당월 8칸 · 누적 6칸) -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-h">
+        <h2 id="monTotTitle">전체 광고현황</h2>
+        <span class="hint" style="margin:0">당월 실적 = <b>현황 탭 예상실적</b>(수주 + 추가예상) · 목표 = <b>설정 › 매출목표</b> · 단위 억원</span>
+        <div class="spacer"></div>
+        <label class="lb" style="margin:0 6px 0 0">기준 월</label>
+        <select id="monMonth" class="fld" style="width:auto"></select>
+      </div>
+      <div class="mon-total" id="monTot"></div>
+    </div>
+
     <div class="card">
       <div class="card-h">
         <h2 id="monTitle">미디어렙사 Monthly</h2>
         <span class="hint" style="margin:0">매출월 기준 <b>수주</b> 실적을 렙사별 목표와 대조합니다. 금액 단위는 <b>억원</b>입니다.</span>
         <div class="spacer"></div>
-        <label class="lb" style="margin:0 6px 0 0">기준 월</label>
-        <select id="monMonth" class="fld" style="width:auto"></select>
-        <button id="monXlsx" class="btn sm" style="margin-left:8px">엑셀 내려받기</button>
+        <button id="monXlsx" class="btn sm">엑셀 내려받기</button>
       </div>
       <div class="kpis" id="monKpis" style="margin:14px 16px"></div>
       <div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding-top:0">
@@ -2288,6 +2302,23 @@ function fcRows(){
   return out;
 }
 
+/* ---------- 예상실적 합계 — 현황 탭의 "광고 Total" 줄과 Monthly 전체 광고현황이 함께 씁니다 ---------- */
+const fcAllProducts = r => (r.products && r.products.length) ? r.products : (r.kids||[]).flatMap(k=>k.products);
+const fcAddKeysOf   = r => r.split ? r.split.map(x=>x.key)
+                         : (r.goal === "sum" ? (r.kids||[]).map(k=>k.key) : [r.key]);
+/** 그 달 수주 실적 합계 (상품별 표와 같은 묶음 기준) */
+function fcActual(act, mIdx){
+  return PGOAL_ROWS.reduce((s,r)=>s + pactOf(act, fcAllProducts(r), mIdx), 0);
+}
+/** 그 달 추가예상 합계 */
+function fcAddTotal(fc){
+  return PGOAL_ROWS.reduce((s,r)=>s + fcAddKeysOf(r).reduce((x,k)=>x + ((fc[k]||{}).add||0), 0), 0);
+}
+/** 입력 중인 초안이 있으면 그것을, 없으면 저장된 값 */
+function fcDraftOrSaved(ym){
+  return (FC_DRAFT && FC_DRAFT.ym === ym) ? FC_DRAFT.data : forecastOf(ym);
+}
+
 function renderForecast(){
   const M   = Number(CUR_MONTH.slice(5));
   const pm  = M > 1 ? M - 1 : 12;
@@ -2297,16 +2328,13 @@ function renderForecast(){
 
   const pt   = productTargetsOf(YEAR);
   const act  = productActuals(ROWS);
-  const fc   = (FC_DRAFT && FC_DRAFT.ym === CUR_MONTH) ? FC_DRAFT.data : forecastOf(CUR_MONTH);
+  const fc   = fcDraftOrSaved(CUR_MONTH);
   const e2   = v => (Number(v)||0) === 0 ? "-" : ((Number(v)||0)/1e8).toFixed(2);
   const rows = fcRows();
 
   /* 합계는 화면 행이 아니라 최상위 구분(PGOAL_ROWS) 기준으로 계산해야
      실시간(ad+·BASIC)처럼 쪼갠 행의 목표가 빠지지 않습니다. */
-  const allProducts = r => (r.products && r.products.length)
-    ? r.products : (r.kids||[]).flatMap(k=>k.products);
-  const addKeysOf = r => r.split ? r.split.map(x=>x.key)
-                       : (r.goal === "sum" ? (r.kids||[]).map(k=>k.key) : [r.key]);
+  const allProducts = fcAllProducts, addKeysOf = fcAddKeysOf;
   const T = PGOAL_ROWS.reduce((t,r)=>{
     const ps = allProducts(r);
     t.prev += M > 1 ? pactOf(act, ps, pm-1) : 0;
@@ -3720,6 +3748,7 @@ async function renderMonthly(){
   const actN  = repActuals(ROWS);
   const prevRows = YEARS.includes(YEAR-1) ? await fetchYearRows(YEAR-1) : [];
   const actP  = repActuals(prevRows);
+  renderMonTotal(M, prevRows);
 
   const sum = (a,n) => (a||[]).slice(0,n).reduce((s,v)=>s+(Number(v)||0),0);
   const names = [...new Set([...Object.keys(goals), ...Object.keys(actN), ...Object.keys(actP)])];
@@ -3862,6 +3891,68 @@ function monListTable(rows, kind){
 }
 
 /** 펼쳤을 때 — "미디어렙사 Monthly" 양식과 같은 지표 + 상세 내역 + 12개월 표 */
+/* =====================================================================
+   전체 광고현황 — 렙사 상세와 같은 양식
+   · 당월 실적 = 현황 탭 예상실적의 "추가포함 합계" (그 달 수주 + 추가예상)
+   · 누적 실적 = 1월~전월 수주 + 당월 예상실적
+   · 전월 · 전년 = 수주 실적 (마감된 달이라 추가예상 없음)
+   · 목표 = 설정 › 매출목표 (전사 목표)
+   ===================================================================== */
+function renderMonTotal(M, prevRows){
+  const el = $("monTot"); if(!el) return;
+  const ym   = `${YEAR}-${String(M).padStart(2,"0")}`;
+  const act  = productActuals(ROWS), actP = productActuals(prevRows || []);
+  const goal = targetsOf(YEAR, "goal");
+  const fc   = fcDraftOrSaved(ym);
+
+  const won  = fcActual(act, M-1);                 // 당월 수주
+  const add  = fcAddTotal(fc);                     // 당월 추가예상
+  const ma   = won + add;                          // 당월 예상실적
+  const mg   = goal[M-1] || 0;
+  const prev = M > 1 ? fcActual(act, M-2) : 0;
+  const mp   = fcActual(actP, M-1);
+  let before = 0; for(let i=0;i<M-1;i++) before += fcActual(act, i);
+  const ca   = before + ma;
+  const cg   = goal.slice(0, M).reduce((s,v)=>s+(Number(v)||0), 0);
+  let cp = 0; for(let i=0;i<M;i++) cp += fcActual(actP, i);
+  const hasPrevYear = cp > 0 || mp > 0;
+
+  const rate = (a,b) => b ? (a/b*100) : 0;
+  const pct  = (a,b) => b ? ((a/b*100).toFixed(2)+"%") : "-";
+  const sign = v => (v>=0?"+":"−") + eok2(Math.abs(v));
+  const col  = v => v>0 ? "color:var(--win)" : (v<0 ? "color:var(--danger)" : "");
+  const rcol = v => v>=100 ? "color:var(--win)" : "color:var(--danger)";
+  const cell = (t,v,s2,color="",cls="") =>
+    `<div class="mon-cell ${cls}"><div class="t">${t}</div><div class="v" style="${color}">${v}</div><div class="s">${s2||"&nbsp;"}</div></div>`;
+  const pd = ma - prev, yd = ma - mp, cyd = ca - cp;
+
+  $("monTotTitle").textContent = `전체 광고현황 — ${YEAR}년 ${M}월`;
+  el.innerHTML = `
+    <div class="mon-sec">${M}월 현황</div>
+    <div class="mon-grid">
+      ${cell("목표", eok2(mg), mg ? comma(mg)+"원" : "목표 미등록")}
+      ${cell("실적 (예상)", eok2(ma), comma(ma)+"원", "", "key")}
+      ${cell("달성율", mg ? pct(ma,mg) : "-", mg ? `목표 ${eok2(mg)} 대비` : "목표 미등록", mg ? rcol(rate(ma,mg)) : "")}
+      ${cell("전월 실적", eok2(prev), M>1 ? comma(prev)+"원" : "해당 없음")}
+      ${cell("전월비", M>1 ? sign(pd) : "-", prev ? pct(pd,prev) : "", col(pd))}
+      ${cell(`${YEAR-1}년 ${M}월`, eok2(mp), hasPrevYear ? comma(mp)+"원" : "전년 데이터 없음")}
+      ${cell("증감 (YoY)", hasPrevYear ? sign(yd) : "-", `${YEAR-1}년 ${M}월 기준`, col(yd))}
+      ${cell("증감율 (YoY)", mp ? pct(yd,mp) : "-", mp ? `${YEAR-1}년 ${M}월 기준` : "전년 실적 없음", col(yd))}
+    </div>
+    <div class="basis">${M}월 실적 = 수주 <b>${eok2(won)}</b> + 추가예상 <b>${eok2(add)}</b> → 현황 탭 예상실적의 추가포함 합계와 같습니다.</div>
+
+    <div class="mon-sec">연간 누적 (1~${M}월)</div>
+    <div class="mon-grid">
+      ${cell("목표", eok2(cg), cg ? comma(cg)+"원" : "목표 미등록")}
+      ${cell("실적 (예상)", eok2(ca), comma(ca)+"원", "", "key")}
+      ${cell("달성율", cg ? pct(ca,cg) : "-", cg ? `목표 ${eok2(cg)} 대비` : "목표 미등록", cg ? rcol(rate(ca,cg)) : "")}
+      ${cell(`${YEAR-1}년 동기`, eok2(cp), hasPrevYear ? comma(cp)+"원" : "전년 데이터 없음")}
+      ${cell("증감 (YoY)", hasPrevYear ? sign(cyd) : "-", `${YEAR-1}년 1~${M}월 기준`, col(cyd))}
+      ${cell("증감율 (YoY)", cp ? pct(cyd,cp) : "-", cp ? `${YEAR-1}년 1~${M}월 기준` : "전년 실적 없음", col(cyd))}
+    </div>
+    <div class="basis">누적 실적 = ${M>1 ? `1~${M-1}월 수주 <b>${eok2(before)}</b> + ` : ""}${M}월 예상실적 <b>${eok2(ma)}</b></div>`;
+}
+
 function monDetail(r, M){
   const rate = (a,b) => b ? (a/b*100) : 0;
   const sign = v => (v>=0?"+":"−")+eok2(Math.abs(v));
