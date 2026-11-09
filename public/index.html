@@ -818,9 +818,9 @@ table.grid tr.tot td.dim{background:#f7f9fc}
         <div><label class="lb">제안월 (자동)</label><input id="iPropMonth" class="fld" readonly style="background:#f5f7fa;color:var(--muted)"></div>
         <div><label class="lb req">제안/수주</label><select id="iStage" class="fld"><option>제안</option><option>수주</option></select></div>
 
-        <div><label class="lb req">집행(예정)월</label><input id="iExecMonth" class="fld" type="month">
-          <div class="fhint">고르면 매출월도 같이 바뀝니다</div></div>
-        <div><label class="lb req">매출월</label><input id="iRevMonth" class="fld" type="month">
+        <div><label class="lb req">집행(예정)월</label><select id="iExecMonth" class="fld"></select>
+          <div class="fhint">3개월 전 ~ 12개월 뒤 · 고르면 매출월도 같이 바뀝니다</div></div>
+        <div><label class="lb req">매출월</label><select id="iRevMonth" class="fld"></select>
           <div class="fhint">다르면 직접 고치세요</div></div>
         <div><label class="lb req">금액(원)</label><input id="iAmount" class="fld" placeholder="예) 10,000,000" style="text-align:right;font-weight:700">
           <div class="fhint">차감·환불은 앞에 <b>-</b> 입력 (예) -10,000,000)</div></div>
@@ -1852,8 +1852,9 @@ function openRow(row, copy){
   refreshOptionLists();
   const today = fmtISO(new Date());
   $("iDate").value       = row?.propose_date || today;
-  $("iExecMonth").value  = row?.exec_month  || `${YEAR}-01`;
-  $("iRevMonth").value   = row?.revenue_month || `${YEAR}-01`;
+  /* 집행(예정)월 · 매출월 — 이번 달 기준 3개월 전 ~ 12개월 뒤에서 고릅니다. 신규는 이번 달이 기본 */
+  fillMonthSelect($("iExecMonth"), row?.exec_month    || thisYM());
+  fillMonthSelect($("iRevMonth"),  row?.revenue_month || thisYM());
   $("iStage").value      = copy ? (row.stage === "제안" ? "수주" : row.stage)
                                 : (row?.stage || "제안");
   setSelect($("iChannel"),  row?.channel || SETTINGS.channel[0] || "");
@@ -1876,6 +1877,34 @@ function openRow(row, copy){
   $("rmMin").textContent = "접기";
   placeRowPanel();
   ROW_SNAP = rowFormSnap();
+}
+
+/* ===================== 집행(예정)월 · 매출월 선택지 =====================
+   이번 달 기준 앞으로 3개월 전 ~ 뒤로 12개월 (총 16칸).
+   예전 건을 수정할 때처럼 범위 밖의 달이 저장돼 있으면 그 달도 목록에 넣어 그대로 보여 줍니다. */
+const MONTH_BACK = 3, MONTH_AHEAD = 12;
+function thisYM(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+function addMonths(ym, n){
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+function monthRange(){
+  const cur = thisYM(), out = [];
+  for(let i = -MONTH_BACK; i <= MONTH_AHEAD; i++) out.push(addMonths(cur, i));
+  return out;
+}
+function fillMonthSelect(el, val){
+  const cur = thisYM();
+  const list = monthRange();
+  if(val && /^\d{4}-\d{2}$/.test(val) && !list.includes(val)) list.push(val);
+  list.sort();
+  el.innerHTML = list.map(k=>{
+    const [y, m] = k.split("-");
+    const tag = k === cur ? " (이번 달)" : (k < addMonths(cur, -MONTH_BACK) || k > addMonths(cur, MONTH_AHEAD) ? " (기존 값)" : "");
+    return `<option value="${k}"${k===cur?' style="font-weight:700"':''}>${y.slice(2)}년 ${m}월${tag}</option>`;
+  }).join("");
+  el.value = val || cur;
 }
 
 /* ===================== 떠 있는 등록 창 ===================== */
@@ -4375,7 +4404,9 @@ function bindUI(){
   /* 집행(예정)월을 고르면 매출월도 같이 따라갑니다 (90% 이상 동일).
      예외 건은 매출월을 직접 고치면 되고, 다르면 아래에 표시해 줍니다. */
   $("iExecMonth").addEventListener("change", ()=>{
-    $("iRevMonth").value = $("iExecMonth").value;
+    const v = $("iExecMonth").value;
+    if([...$("iRevMonth").options].some(o=>o.value===v)) $("iRevMonth").value = v;
+    else fillMonthSelect($("iRevMonth"), v);
     syncMonthHint();
   });
   $("iRevMonth").addEventListener("change", syncMonthHint);
